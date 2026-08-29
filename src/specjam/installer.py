@@ -18,56 +18,30 @@ from .graph_engine import load_graph
 MANAGED_ROOT = ".specjam"
 LOCK_NAME = "lock.json"
 BRIDGE_NAME = "AGENTS.md"
+FLOW_GRAPH_FILES = {
+    "delivery": "delivery-graph.json",
+    "discovery": "discovery-graph.json",
+    "postmortem": "postmortem-graph.json",
+}
 
 FLOW_TEMPLATES: dict[str, dict[str, str]] = {
-    "daily": {
-        "answer.md": "# Answer\n\n## Finding\n\n## Evidence\n",
-        "result.md": "# Result\n\n## Change\n\n## Verification\n",
-        "handoff.md": "# Handoff\n\n## Context\n\n## Next owner\n\n## Blockers\n",
-        "daily.md": "# Daily record\n\n## Context\n\n## Decisions\n\n## Evidence\n\n## Blockers\n",
-    },
     "discovery": {
-        "problem.md": "# Problem\n\n## User outcome\n\n## Scope\n\n## Evidence\n",
-        "research.md": "# Research\n\n## Questions\n\n## Findings\n\n## Sources\n",
-        "options.md": "# Options\n\n## Option A\n\n## Option B\n\n## Trade-offs\n",
-        "decision.md": "# Decision\n\n## Chosen direction\n\n## Rationale\n\n## Rejected options\n",
-        "discovery.md": "# Discovery handoff\n\n## Problem\n\n## Decision\n\n## Delivery entry criteria\n",
+        "01-epic.md": "# Epic\n\n## Outcome\n\n## Scope\n\n## Evidence\n",
+        "02-stories.md": "# Stories\n\n## Story list\n\n## Acceptance criteria\n",
+        "03-mapping.md": "# Feature mapping\n\n## Story to feature mapping\n\n## Dependencies\n",
     },
     "delivery": {
-        "context.md": "# Context\n\n## Problem\n\n## Evidence\n\n## Blockers\n",
-        "spec.md": "# Specification\n\n## User outcome\n\n## Requirements\n\n## Acceptance criteria\n",
-        "clarification.md": "# Clarification\n\n## Questions\n\n## Answers\n\n## Assumptions\n",
-        "plan.md": "# Plan\n\n## Approach\n\n## Dependencies\n\n## Risks\n",
-        "checklist.md": "# Checklist\n\n- [ ] Validate scope\n- [ ] Validate risks\n",
-        "tasks.md": "# Tasks\n\n- [ ] Define the first executable task\n",
-        "analysis.md": "# Analysis\n\n## Findings\n\n## Decision\n",
-        "design.md": "# Design\n\n## Decision\n\n## Alternatives\n\n## Consequences\n",
-        "implementation.md": "# Implementation\n\n## Changes\n\n## Evidence\n",
-        "verification.md": "# Verification\n\n## Evidence\n\n## Result\n",
-    },
-    "sdd": {
-        "context.md": "# Design context\n\n## Problem\n\n## Drivers\n\n## Constraints\n",
-        "constraints.md": "# Constraints\n\n## Functional\n\n## Operational\n\n## Security\n",
-        "sdd.md": "# Software Design Document\n\n## Context\n\n## Architecture\n\n## Interfaces\n\n## Data\n\n## Failure modes\n",
-        "sdd-review.md": "# SDD review\n\n## Findings\n\n## Open questions\n\n## Recommendation\n",
-        "sdd-decision.md": "# SDD decision\n\n## Approved design\n\n## Conditions\n\n## Exceptions\n",
-        "sdd-handoff.md": "# SDD handoff\n\n## Implementation guidance\n\n## Verification obligations\n",
-    },
-    "bugfix": {
-        "report.md": "# Bug report\n\n## Symptom\n\n## Impact\n\n## Evidence\n",
-        "reproduction.md": "# Reproduction\n\n## Preconditions\n\n## Steps\n\n## Expected vs actual\n",
-        "diagnosis.md": "# Diagnosis\n\n## Root cause\n\n## Contributing factors\n",
-        "fix-plan.md": "# Fix plan\n\n## Change\n\n## Risks\n",
-        "implementation.md": "# Implementation\n\n## Changes\n\n## Evidence\n",
-        "verification.md": "# Verification\n\n## Evidence\n\n## Result\n",
+        "01-context.md": "# Context\n\n## Problem\n\n## Evidence\n\n## Blockers\n",
+        "02-spec.md": "# Specification\n\n## User outcome\n\n## Requirements\n\n## Acceptance criteria\n",
+        "03-design.md": "# Design\n\n## Decision\n\n## Alternatives\n\n## Consequences\n",
+        "04-build.md": "# Build\n\n## Changes\n\n## Evidence\n",
+        "05-validate.md": "# Validate\n\n## Evidence\n\n## Result\n",
     },
     "postmortem": {
-        "incident.md": "# Incident\n\n## Impact\n\n## Detection\n\n## Scope\n",
-        "timeline.md": "# Timeline\n\n| Time | Event | Evidence |\n| --- | --- | --- |\n",
-        "causes.md": "# Causes\n\n## Proximate causes\n\n## Systemic conditions\n\n## Evidence\n",
-        "actions.md": "# Actions\n\n- [ ] Define an owner and due date for each corrective action\n",
-        "postmortem.md": "# Postmortem\n\n## Summary\n\n## Impact\n\n## Causes\n\n## Actions\n",
-        "postmortem-review.md": "# Postmortem review\n\n## Completeness\n\n## Safety and privacy\n\n## Approval\n",
+        "01-triage.md": "# Triage\n\n## Impact\n\n## Scope\n\n## Evidence\n",
+        "02-root-cause.md": "# Root cause\n\n## Cause\n\n## Contributing factors\n\n## Evidence\n",
+        "03-actions.md": "# Actions\n\n- [ ] Define an owner and due date for each corrective action\n",
+        "04-follow-up.md": "# Follow-up\n\n## Outcome\n\n## Remaining work\n\n## Evidence\n",
     },
 }
 
@@ -291,8 +265,10 @@ def inspect_installation(target: str | Path = ".") -> dict[str, Any]:
 def scaffold_flow(target: str | Path, flow: str, slug: str) -> Path:
     if not slug or Path(slug).name != slug or slug in {".", ".."}:
         raise ValueError("slug must be a single safe directory name")
+    if flow not in FLOW_GRAPH_FILES:
+        raise ValueError(f"unsupported flow: {flow}")
     root = Path(target).resolve()
-    graph_path = root / MANAGED_ROOT / "graphs" / f"{flow}.json"
+    graph_path = root / MANAGED_ROOT / "graphs" / FLOW_GRAPH_FILES[flow]
     if not graph_path.exists():
         raise FileNotFoundError(f"installed graph not found: {graph_path}")
     load_graph(graph_path)

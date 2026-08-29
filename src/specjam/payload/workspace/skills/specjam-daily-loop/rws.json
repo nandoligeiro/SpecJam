@@ -7,6 +7,6 @@
     {"id": "record", "objective": "Leave durable context", "action": "Write result, decisions, evidence, and blockers", "verify": "An auditable daily record exists", "next": []}
   ],
   "semantics": {"invariants": ["L3 requires delivery", "external posting needs human confirmation"], "decisions": ["classification remains deterministic and overrideable with explicit signals"], "safety_rules": ["keep run context local by default"], "rollback": ["reopen as delivery when risk increases"]},
-  "attachments": [{"id": "daily-graph", "kind": "resource", "path": ".specjam/graphs/daily.json", "required": true, "scope": "skill"}],
+  "attachments": [{"id": "classification", "kind": "resource", "path": "src/specjam/classification.py", "required": true, "scope": "skill"}],
   "outputs": ["classification", "daily record", "handoff when required"]
 }

@@ -12,55 +12,59 @@ GRAPH_DIR = Path(__file__).parents[1] / "src/specjam/payload/workspace/graphs"
 
 
 class GraphEngineTests(unittest.TestCase):
-    def test_context_blocks_without_specification(self):
-        graph = load_graph(GRAPH_DIR / "delivery.json")
-        decision = route(graph, RouteState("context", frozenset({"context.md"})))
+    def test_delivery_context_requires_context_artifact(self):
+        graph = load_graph(GRAPH_DIR / "delivery-graph.json")
+        decision = route(graph, RouteState("context"))
         self.assertFalse(decision.may_advance)
         self.assertTrue(decision.blocked)
-        self.assertEqual(decision.missing_artifacts, ("spec.md",))
+        self.assertEqual(decision.missing_artifacts, ("01-context.md",))
+        self.assertEqual(decision.blocking_reason, "SPEC is not ready")
 
-    def test_delivery_blocks_without_specification(self):
-        graph = load_graph(GRAPH_DIR / "delivery.json")
-        decision = route(graph, RouteState("specification"))
+        ready = route(graph, RouteState("context", frozenset({"01-context.md"})))
+        self.assertTrue(ready.may_advance)
+        self.assertEqual(ready.next_stage, "spec")
+        self.assertEqual(ready.next_agent, "spec-agent")
+
+    def test_delivery_spec_requires_spec_artifact(self):
+        graph = load_graph(GRAPH_DIR / "delivery-graph.json")
+        decision = route(graph, RouteState("spec"))
         self.assertFalse(decision.may_advance)
         self.assertTrue(decision.blocked)
-        self.assertEqual(decision.missing_artifacts, ("spec.md",))
-        self.assertIn("specification", decision.blocking_reason)
+        self.assertEqual(decision.missing_artifacts, ("02-spec.md",))
+        self.assertEqual(decision.blocking_reason, "Design is not complete")
 
-    def test_delivery_advances_after_specification(self):
-        graph = load_graph(GRAPH_DIR / "delivery.json")
-        decision = route(graph, RouteState("specification", frozenset({"spec.md"})))
+    def test_delivery_spec_routes_to_build_without_design(self):
+        graph = load_graph(GRAPH_DIR / "delivery-graph.json")
+        decision = route(graph, RouteState("spec", frozenset({"02-spec.md"})))
         self.assertTrue(decision.may_advance)
-        self.assertEqual(decision.next_stage, "clarify")
+        self.assertEqual(decision.next_stage, "build")
         self.assertEqual(decision.reviewers, ("domain", "architecture", "security", "observability", "tests"))
+        self.assertIsNone(decision.writer)
+        self.assertEqual(graph.nodes["spec"].subagents[0].agent, "specjam-domain-reviewer")
 
     def test_design_is_conditional(self):
-        graph = load_graph(GRAPH_DIR / "delivery.json")
-        with_design = route(graph, RouteState("analyze", frozenset({"analysis.md"}), {"design_required": True}))
-        without_design = route(graph, RouteState("analyze", frozenset({"analysis.md"}), {"design_required": False}))
+        graph = load_graph(GRAPH_DIR / "delivery-graph.json")
+        with_design = route(graph, RouteState("spec", frozenset({"02-spec.md"}), {"design_required": True}))
+        without_design = route(graph, RouteState("spec", frozenset({"02-spec.md"}), {"design_required": False}))
         self.assertEqual(with_design.next_stage, "design")
         self.assertEqual(without_design.next_stage, "build")
 
-    def test_discovery_requires_decision_before_handoff(self):
-        graph = load_graph(GRAPH_DIR / "discovery.json")
-        decision = route(graph, RouteState("decision", frozenset({"options.md"})))
+    def test_discovery_requires_epic_before_stories(self):
+        graph = load_graph(GRAPH_DIR / "discovery-graph.json")
+        decision = route(graph, RouteState("epic"))
         self.assertFalse(decision.may_advance)
-        self.assertEqual(decision.missing_artifacts, ("decision.md",))
-        complete = route(graph, RouteState("decision", frozenset({"decision.md"})))
-        self.assertTrue(complete.may_advance)
-        self.assertEqual(complete.next_stage, "handoff")
+        self.assertEqual(decision.missing_artifacts, ("01-epic.md",))
+        ready = route(graph, RouteState("epic", frozenset({"01-epic.md"})))
+        self.assertTrue(ready.may_advance)
+        self.assertEqual(ready.next_stage, "stories")
+        self.assertEqual(ready.reviewers, ("domain",))
 
-    def test_sdd_and_postmortem_expose_bounded_review_gates(self):
-        sdd = load_graph(GRAPH_DIR / "sdd.json")
-        sdd_review = route(sdd, RouteState("review", frozenset({"sdd-review.md"})))
-        self.assertEqual(sdd_review.reviewers, ("architecture", "security", "observability", "tests"))
-        self.assertEqual(sdd_review.writer, "specjam.synthesis")
-
-        postmortem = load_graph(GRAPH_DIR / "postmortem.json")
-        causes = route(postmortem, RouteState("causes", frozenset({"causes.md"})))
+    def test_postmortem_requires_root_cause_before_actions(self):
+        postmortem = load_graph(GRAPH_DIR / "postmortem-graph.json")
+        causes = route(postmortem, RouteState("root-cause", frozenset({"02-root-cause.md"})))
         self.assertTrue(causes.may_advance)
         self.assertEqual(causes.next_stage, "actions")
-        self.assertEqual(len(causes.reviewers), 5)
+        self.assertEqual(causes.reviewers, ("observability", "architecture"))
 
     def test_every_graph_validates(self):
         for path in GRAPH_DIR.glob("*.json"):
@@ -84,10 +88,10 @@ class GraphEngineTests(unittest.TestCase):
         self.assertIn("duplicate reviewer", str(error.exception))
 
     def test_route_is_recorded_append_only(self):
-        graph = load_graph(GRAPH_DIR / "delivery.json")
+        graph = load_graph(GRAPH_DIR / "delivery-graph.json")
         with tempfile.TemporaryDirectory() as directory:
             trail = TrailStore(Path(directory) / "run.jsonl")
-            state = RouteState("specification", frozenset({"spec.md"}))
+            state = RouteState("spec", frozenset({"02-spec.md"}))
             record_route(trail, "run-1", graph, state, now=datetime(2026, 1, 1, tzinfo=timezone.utc))
             record_route(trail, "run-1", graph, state, now=datetime(2026, 1, 2, tzinfo=timezone.utc))
             entries = trail.read()

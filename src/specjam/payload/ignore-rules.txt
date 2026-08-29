@@ -2,4 +2,6 @@
 .specjam/state/
 .specjam/runs/
 .specjam/daily/
-
+.discovery/
+projects/
+daily/

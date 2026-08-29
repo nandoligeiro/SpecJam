@@ -1,0 +1,61 @@
+{
+  "graph": "delivery",
+  "version": "0.1.0",
+  "start": "context",
+  "terminal": "done",
+  "nodes": {
+    "context": {
+      "agent": "context-agent",
+      "required_artifacts": ["01-context.md"],
+      "next": "spec",
+      "implementation_blocked": true,
+      "blocking_reason": "SPEC is not ready"
+    },
+    "spec": {
+      "agent": "spec-agent",
+      "required_artifacts": ["02-spec.md"],
+      "subagents": [
+        {"role": "domain", "agent": "specjam-domain-reviewer", "read_only": true},
+        {"role": "architecture", "agent": "specjam-architecture-reviewer", "read_only": true},
+        {"role": "security", "agent": "specjam-security-reviewer", "read_only": true},
+        {"role": "observability", "agent": "specjam-observability-reviewer", "read_only": true},
+        {"role": "tests", "agent": "specjam-test-reviewer", "read_only": true}
+      ],
+      "next": {
+        "when": "design_required",
+        "true": "design",
+        "false": "build"
+      },
+      "implementation_blocked": true,
+      "blocking_reason": "Design is not complete"
+    },
+    "design": {
+      "agent": "design-agent",
+      "required_artifacts": ["03-design.md"],
+      "next": "build",
+      "implementation_blocked": true,
+      "blocking_reason": "Build is not complete"
+    },
+    "build": {
+      "agent": "implementation-agent",
+      "required_artifacts": ["04-build.md"],
+      "next": "validate",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "validate": {
+      "agent": "validation-agent",
+      "required_artifacts": ["05-validate.md"],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "done": {
+      "agent": "none",
+      "required_artifacts": [],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    }
+  }
+}

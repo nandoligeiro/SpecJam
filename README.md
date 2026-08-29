@@ -23,20 +23,11 @@ The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existin
 ## Architecture
 
 ```text
-natural language
+  natural language -----> discovery graph
        |
-       v
-  classification -------> daily graph (L0/L1)
+       +-----------------> delivery graph
        |
-       +-----------------> discovery graph (uncertain work)
-       |
-       +-----------------> delivery graph (L2/L3)
-       |
-       +-----------------> SDD graph (architecture decisions)
-       |
-       +-----------------> bugfix graph (explicit bug flow)
-       |
-       +-----------------> postmortem graph (learning after incidents)
+       +-----------------> postmortem graph
 
 graph + state --> pure route --> decision --> append-only trail
                                       |
@@ -49,16 +40,15 @@ The route function never writes files, invokes tools, or calls a model. Persiste
 
 ## First-class flows
 
-SpecJam keeps each method explicit and data-driven:
+SpecJam keeps each flow explicit and data-driven:
 
 - **Discovery** turns uncertainty into a problem statement, evidence, options, and a decision.
-- **Delivery** moves a validated request through specification, planning, implementation, and convergence gates.
-- **SDD** produces and reviews a Software Design Document before architecture-sensitive implementation.
-- **Bugfix** establishes reproduction and diagnosis before a fix is accepted.
-- **Postmortem** turns an incident record into causes, actions, and durable learning.
-- **Daily** routes small work proportionally through L0–L3.
+- **Delivery** runs SDD: `SPEC → DESIGN? → BUILD → VALIDATE`.
+- **Postmortem** turns an incident record into root cause, actions, and follow-up.
 
-The flows are independent JSON graphs under `src/specjam/payload/workspace/graphs/`; organizations can add or replace graphs without changing the routing engine.
+The daily engineering loop is a supporting L0–L3 classification mechanism, not a fourth flow graph.
+
+The three graphs are `graphs/discovery-graph.json`, `graphs/delivery-graph.json`, and `graphs/postmortem-graph.json`; organizations can add or replace graphs without changing the routing engine.
 
 ## RWSA contract
 
@@ -74,7 +64,7 @@ Skill = Routing + (Workflow + Semantics + Attachments)
 
 ```bash
 python -m unittest discover -s tests -v
-PYTHONPATH=src python -m specjam graph validate src/specjam/payload/workspace/graphs/delivery.json
+PYTHONPATH=src python -m specjam graph validate src/specjam/payload/workspace/graphs/delivery-graph.json
 python scripts/build_archive.py
 ```
 

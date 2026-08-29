@@ -1,0 +1,39 @@
+{
+  "graph": "discovery",
+  "version": "0.1.0",
+  "start": "epic",
+  "terminal": "done",
+  "nodes": {
+    "epic": {
+      "agent": "epic-agent",
+      "required_artifacts": ["01-epic.md"],
+      "subagents": [
+        {"role": "domain", "agent": "specjam-domain-reviewer", "read_only": true}
+      ],
+      "next": "stories",
+      "implementation_blocked": true,
+      "blocking_reason": "Stories are not defined"
+    },
+    "stories": {
+      "agent": "stories-agent",
+      "required_artifacts": ["02-stories.md"],
+      "next": "mapping",
+      "implementation_blocked": true,
+      "blocking_reason": "Feature mapping is not complete"
+    },
+    "mapping": {
+      "agent": "mapping-agent",
+      "required_artifacts": ["03-mapping.md"],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "done": {
+      "agent": "none",
+      "required_artifacts": [],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    }
+  }
+}

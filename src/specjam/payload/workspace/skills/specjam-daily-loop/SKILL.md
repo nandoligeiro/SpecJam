@@ -17,7 +17,7 @@ Activate at the natural-language entry point. Use L0 for lookup and explanation,
 
 1. Capture the request and available evidence.
 2. Classify effort as L0–L3.
-3. Route L0/L1 through the daily graph; hand L2/L3 to delivery.
+3. Keep L0/L1 in the daily record; hand L2/L3 to the Delivery flow.
 4. Record the result, decision, evidence, and blockers.
 5. Ask before posting to an external worklog or tracker.
 
@@ -29,5 +29,4 @@ Activate at the natural-language entry point. Use L0 for lookup and explanation,
 
 ## Attachments
 
-- Daily graph: `.specjam/graphs/daily.json`
 - Classification implementation: `src/specjam/classification.py`

@@ -40,6 +40,8 @@ def validate_graph(graph: FlowGraph) -> None:
             errors.append(f"node {node.id!r} is missing agent")
         if len(set(node.reviewers)) != len(node.reviewers):
             errors.append(f"node {node.id!r} declares duplicate reviewer roles")
+        if any(not subagent.read_only for subagent in node.subagents):
+            errors.append(f"node {node.id!r} declares a subagent without read_only=true")
         if node.writer and node.writer in node.reviewers:
             errors.append(f"node {node.id!r} cannot use a reviewer as its synthesis writer")
         conditions: set[str | None] = set()
@@ -49,8 +51,8 @@ def validate_graph(graph: FlowGraph) -> None:
             if edge.when in conditions:
                 errors.append(f"node {node.id!r} has duplicate transition condition {edge.when!r}")
             conditions.add(edge.when)
-        if node.id in graph.terminal_stages and node.transitions:
-            errors.append(f"terminal node {node.id!r} must not have transitions")
+        if node.id in graph.terminal_stages and any(edge.to != node.id for edge in node.transitions):
+            errors.append(f"terminal node {node.id!r} may only transition to itself")
         if node.id not in graph.terminal_stages and not node.transitions:
             errors.append(f"non-terminal node {node.id!r} must have a transition")
 
@@ -106,10 +108,11 @@ def route(graph: FlowGraph, state: RouteState) -> RouteDecision:
             blocking_reason=reason,
             reviewers=node.reviewers,
             writer=node.writer,
+            implementation_blocked=node.block_implementation,
         )
 
     if node.id in graph.terminal_stages:
-        return RouteDecision(graph.id, node.id, None, None, (), False, False, None, node.reviewers, node.writer)
+        return RouteDecision(graph.id, node.id, None, None, (), False, False, None, node.reviewers, node.writer, node.block_implementation)
 
     next_stage = next((edge.to for edge in node.transitions if _matches(edge.when, state.flags)), None)
     if next_stage is None:
@@ -124,6 +127,7 @@ def route(graph: FlowGraph, state: RouteState) -> RouteDecision:
             f"No transition condition matched for stage {node.id!r}.",
             node.reviewers,
             node.writer,
+            node.block_implementation,
         )
     return RouteDecision(
         graph_id=graph.id,
@@ -136,6 +140,7 @@ def route(graph: FlowGraph, state: RouteState) -> RouteDecision:
         blocking_reason=None,
         reviewers=node.reviewers,
         writer=node.writer,
+        implementation_blocked=node.block_implementation,
     )
 
 
@@ -204,4 +209,3 @@ def record_route(
         )
     )
     return selected
-

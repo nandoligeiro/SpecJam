@@ -8,7 +8,7 @@ The runtime is intentionally split into a pure policy core and side-effecting ad
 Graph + RouteState ──> route() ──> RouteDecision
                               └──> TrailStore.append()
 
-GraphNode.reviewers ──> ReviewRequest[] ──> ReviewResult[]
+GraphNode.subagents ──> ReviewRequest[] ──> ReviewResult[]
                                       └──> one SynthesisPlan
 ```
 
@@ -16,27 +16,23 @@ GraphNode.reviewers ──> ReviewRequest[] ──> ReviewResult[]
 
 ## Graph model
 
-Each graph contains an id, version, start stage, terminal stages, and nodes. A node contains:
+Each canonical graph contains `graph`, `version`, `start`, `terminal`, and `nodes`. A node contains:
 
-- the responsible agent role;
+- the responsible agent;
 - required artifact paths;
-- ordered transitions with optional boolean flag predicates;
-- bounded reviewer roles;
-- one synthesis writer;
-- a blocking policy and optional extension metadata.
+- a `next` stage or an explicit conditional `next` map;
+- optional bounded `subagents`, each with a role, agent, and `read_only` capability;
+- an `implementation_blocked` policy and blocking reason.
 
-The engine validates unknown targets, duplicate conditions, duplicate reviewers, terminal transitions, missing agents, and unreachable nodes. Cycles are allowed for future retry/convergence flows, but no implicit transition is invented.
+The engine normalizes the canonical JSON without changing its meaning and validates unknown targets, duplicate roles, terminal transitions, missing agents, non-read-only subagents, and unreachable nodes. The terminal `done` node may point to itself; no implicit transition is invented.
 
 ## Foundation graphs
 
 | Graph | Use | Key stages |
 | --- | --- | --- |
-| `daily` | L0/L1 proportional work | intake → classify → lookup/execute/handoff → capture |
-| `discovery` | Uncertain or ambiguous work | frame → research → options → decision → handoff |
-| `delivery` | L2/L3 features | context → specification → clarify → plan → checklist → tasks → analyze → optional design → build → converge |
-| `sdd` | Software Design Document | context → constraints → design → review → decision → handoff |
-| `bugfix` | evidence-first fixes | assess → reproduce → diagnose → fix → verify |
-| `postmortem` | Incident learning | incident → timeline → causes → actions → postmortem → review |
+| `discovery` | Local developer workspace | epic → stories → mapping |
+| `delivery` | Local developer workspace and SDD | context → spec → optional design → build → validate |
+| `postmortem` | Local developer workspace | triage → root-cause → actions → follow-up |
 
 ## RWSA skill contract
 
@@ -52,7 +48,7 @@ Skill = Routing + (Workflow + Semantics + Attachments)
 
 ## Bounded reviewers
 
-Review fan-out is data-driven. Every reviewer request is limited to `read` and `search`. The aggregate preserves incomplete results, and the synthesis plan names exactly one writer. This gives the orchestrator parallel analysis without creating competing writers or invisible failures.
+Review fan-out is data-driven. Every declared subagent is read-only and receives bounded `read` and `search` capability. The aggregate preserves incomplete results, and the orchestrator uses one synthesis step as the only writer. This gives the flow independent analysis without creating competing writers or invisible failures.
 
 ## Installer boundary
 

@@ -15,10 +15,10 @@ class InstallerTests(unittest.TestCase):
             second = install(target)
             self.assertEqual(second.changed, ())
 
-            managed = target / ".specjam/graphs/delivery.json"
+            managed = target / ".specjam/graphs/delivery-graph.json"
             managed.unlink()
             report = update(target)
-            self.assertIn(".specjam/graphs/delivery.json", report.changed)
+            self.assertIn(".specjam/graphs/delivery-graph.json", report.changed)
             self.assertTrue(managed.exists())
 
             bridge = target / "AGENTS.md"
@@ -42,20 +42,16 @@ class InstallerTests(unittest.TestCase):
             target = Path(directory)
             install(target)
             work = scaffold_flow(target, "delivery", "demo")
-            self.assertTrue((work / "spec.md").exists())
-            self.assertTrue((work / "verification.md").exists())
+            self.assertTrue((work / "01-context.md").exists())
+            self.assertTrue((work / "05-validate.md").exists())
 
             discovery = scaffold_flow(target, "discovery", "discovery-demo")
-            self.assertTrue((discovery / "problem.md").exists())
-            self.assertTrue((discovery / "discovery.md").exists())
+            self.assertTrue((discovery / "01-epic.md").exists())
+            self.assertTrue((discovery / "03-mapping.md").exists())
 
-            sdd = scaffold_flow(target, "sdd", "sdd-demo")
-            self.assertTrue((sdd / "sdd.md").exists())
-            self.assertTrue((sdd / "sdd-handoff.md").exists())
-
-            postmortem = scaffold_flow(target, "postmortem", "incident-demo")
-            self.assertTrue((postmortem / "timeline.md").exists())
-            self.assertTrue((postmortem / "postmortem.md").exists())
+            postmortem = scaffold_flow(target, "postmortem", "postmortem-demo")
+            self.assertTrue((postmortem / "02-root-cause.md").exists())
+            self.assertTrue((postmortem / "04-follow-up.md").exists())
 
 
 if __name__ == "__main__":

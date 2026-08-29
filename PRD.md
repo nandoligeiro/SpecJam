@@ -43,21 +43,20 @@ Today teams typically rely on one of the following, all insufficient:
 
 ## 8\. Proposed Solution
 
-SpecJam consists of a portable runtime, six first-class flows, reusable skills, and an installer\.
+SpecJam consists of a portable runtime, three first-class flows, a supporting daily loop, reusable skills, and an installer\.
 
 ### 8\.1 Flow Graphs \(deterministic routing\)
 
-Six declarative graphs define the stages, required artifacts, gate conditions, and the reviewers each stage may dispatch: `daily`, `discovery`, `delivery`, `sdd`, `bugfix`, and `postmortem`\.
+Three declarative graphs define the stages, required artifacts, gate conditions, and the subagents each stage may dispatch: `discovery`, `delivery`, and `postmortem`\.
 
 The graphs are SpecJam-native data contracts\. A graph may be extended with metadata, but routing never depends on a vendor command, model, or agent runtime\.
 
 The primary flow families are:
 
 - **Discovery** — reduce uncertainty before committing to a delivery path\.
-- **Delivery** — turn an agreed problem into a verified implementation\.
-- **SDD** — produce and approve a Software Design Document for architecture-sensitive work\.
+- **Delivery** — run Specification-Driven Development from specification to validated implementation\.
 - **Postmortem** — turn an incident into evidence-backed learning and owned actions\.
-- **Daily** and **Bugfix** — provide proportional and evidence-first paths for small work and defects\.
+- **Daily** — provide proportional L0–L3 classification around the three flow graphs\.
 
 A graph node declares:
 
@@ -118,7 +117,7 @@ The workspace is consolidated under a single directory, with only the minimum le
 
 ### In Scope
 
-- Six flow graphs and the routing engine with an auditable run trail\.
+- Three flow graphs and the routing engine with an auditable run trail\.
 - Bounded read\-only reviewer roles with a single\-writer synthesis step\.
 - Skill contract, core domain\-neutral skills, and two authoring skills\.
 - Daily loop with L0–L3 classification\.
@@ -167,50 +166,39 @@ The workspace is consolidated under a single directory, with only the minimum le
 
 ### 10\.3 Discovery flow
 
-Discovery is the entry path for ambiguous, high-risk, or outcome-uncertain work\. It produces a durable handoff and does not silently turn an assumption into an implementation requirement\.
+Discovery is the local developer workspace flow for turning an Epic into mapped Stories and Features\. Jira is the shared source of truth; local `.discovery/` and `projects/` folders are optional working copies\.
 
-1. `intake` captures the request and selects Discovery when the outcome, scope, or solution is materially uncertain\.
-2. `frame` writes `problem.md` with the user outcome, scope, and initial evidence\.
-3. `research` writes `research.md` with questions, findings, and sources\.
-4. `options` writes `options.md`, comparing viable directions and trade-offs\.
-5. `decision` writes `decision.md`; bounded domain and architecture reviewers may inspect the evidence, and one synthesis writer records the decision\.
-6. `handoff` writes `discovery.md`, including the decision and entry criteria for Delivery or SDD\.
-7. The run reaches `complete` only when the handoff artifact exists and the transition is recorded\.
+1. `epic` creates or updates `01-epic.md` and represents the work as a Jira Epic\. A domain reviewer may inspect the Epic context in read-only mode\.
+2. `stories` creates or updates `02-stories.md` and defines the Discovery Stories\.
+3. `mapping` creates or updates `03-mapping.md` and maps Stories to Delivery Features\.
+4. The run reaches `done` only when the mapping artifact exists and the transition is recorded\.
 
 ### 10\.4 Delivery flow
 
-Delivery is the implementation path for an agreed outcome\. Its context gate requires both `context.md` and `spec.md`; a request cannot advance toward implementation with only an informal description\.
+Delivery is the local developer workspace flow for implementing a Feature\. Its SDD path is exactly `SPEC → DESIGN? → BUILD → VALIDATE`; `DESIGN` is conditional\.
 
-1. `intake` selects Delivery and `context` records the problem, evidence, and blockers\.
-2. `specification` creates or updates `spec.md` and dispatches bounded domain, architecture, security, observability, and test reviews\.
-3. `clarify` records open questions and assumptions in `clarification.md`\.
-4. `plan`, `checklist`, `tasks`, and `analyze` turn the specification into an executable plan and identify risks\.
-5. When `design_required` is true, `design` must produce `design.md`; otherwise the graph routes directly to `build`\.
-6. `build` records `implementation.md`; `converge` verifies the result in `verification.md` against the durable contract\.
-7. Failed gates remain visible in the run trail and the flow does not claim completion\.
+1. `context` creates or updates `01-context.md`; until it exists, implementation is blocked because SPEC is not ready\.
+2. `spec` creates or updates `02-spec.md` and may dispatch the declared domain, architecture, security, observability, and test subagents as read-only reviewers\.
+3. When `design_required` is true, `design` creates `03-design.md`; otherwise the graph routes directly from SPEC to BUILD\.
+4. `build` creates `04-build.md` and records the implementation evidence\.
+5. `validate` creates `05-validate.md` and records the validation result\.
+6. The run reaches `done` only when the selected path's artifacts exist and every transition is recorded\.
 
 ### 10\.5 SDD flow
 
-SDD means **Software Design Document**\. It is a focused flow for architectural decisions that need explicit constraints, review, and a handoff that Delivery can consume\.
+SDD means **Specification-Driven Development** and is the Delivery subflow\. Its canonical flow is `SPEC → DESIGN? → BUILD → VALIDATE`; `DESIGN` is conditional and is included only when the change requires an explicit design decision\.
 
-1. `intake` selects SDD when a change affects architecture, interfaces, data, reliability, security, or operational behavior\.
-2. `context` writes `context.md`; `constraints` writes `constraints.md` with functional, operational, and security drivers\.
-3. `design` writes `sdd.md`, covering context, architecture, interfaces, data, and failure modes\.
-4. `review` writes `sdd-review.md` after bounded architecture, security, observability, and test reviews\.
-5. `decision` writes `sdd-decision.md`, preserving approvals, conditions, and exceptions\.
-6. `handoff` writes `sdd-handoff.md` with implementation guidance and verification obligations\.
-7. Delivery consumes the SDD handoff when the design decision is part of the implementation scope\.
+The SDD stage names and artifacts are the Delivery nodes `spec`/`02-spec.md`, optional `design`/`03-design.md`, `build`/`04-build.md`, and `validate`/`05-validate.md`\. There is no separate SDD graph\.
 
 ### 10\.6 Postmortem flow
 
-Postmortem is a blameless learning flow started after an incident or materially failed delivery\. It separates facts from causal interpretation and converts learning into owned work\.
+Postmortem is the local developer workspace flow for learning after an incident or materially failed delivery\. Jira remains the shared source of truth\.
 
-1. `incident` writes `incident.md` with impact, detection, and scope\.
-2. `timeline` writes `timeline.md` from evidence, events, and timestamps\.
-3. `causes` writes `causes.md`, distinguishing proximate causes from systemic conditions; bounded reviewers inspect the analysis\.
-4. `actions` writes `actions.md` with an owner, due date, and success signal for each corrective action\.
-5. `postmortem` writes `postmortem.md`, consolidating the incident, evidence, causes, and actions\.
-6. `review` writes `postmortem-review.md` and checks completeness, privacy, safety, and approval before completion\.
+1. `triage` creates or updates `01-triage.md`; until it exists, the root cause is not complete\.
+2. `root-cause` creates or updates `02-root-cause.md` and may dispatch observability and architecture subagents as read-only reviewers\.
+3. `actions` creates or updates `03-actions.md` with owners and due dates\.
+4. `follow-up` creates or updates `04-follow-up.md` and records the outcome and remaining work\.
+5. The run reaches `done` only when the follow-up artifact exists and the transition is recorded\.
 
 ### 10\.7 Upgrade
 
@@ -223,11 +211,11 @@ Postmortem is a blameless learning flow started after an incident or materially 
 
 ### Flow requirements
 
-- Every flow is represented as a versioned graph with explicit stages, transitions, artifact gates, and terminal states\.
-- Discovery must produce a problem statement, evidence, options, decision, and handoff before completion\.
-- Delivery must block advancement from `context` until both `context.md` and `spec.md` exist\.
-- SDD must preserve design constraints, review findings, the approved decision, and implementation handoff as separate artifacts\.
-- Postmortem must preserve incident facts, timeline, causal analysis, corrective actions, and review as separate artifacts\.
+- The three flows are represented as versioned graphs with explicit stages, transitions, artifact gates, and terminal states\.
+- Discovery must complete `epic → stories → mapping` with `01-epic.md`, `02-stories.md`, and `03-mapping.md` before `done`\.
+- Delivery must complete `context → spec → design? → build → validate` with the numbered artifacts defined by the graph\.
+- SDD must follow `SPEC → DESIGN? → BUILD → VALIDATE`, with `DESIGN` controlled by the explicit `design_required` flag\.
+- Postmortem must complete `triage → root-cause → actions → follow-up` with the numbered artifacts defined by the graph\.
 - A missing required artifact or unmatched transition blocks the run and produces an actionable reason\.
 - Every gate evaluation may be persisted as an append-only run-trail entry without changing the pure route result\.
 - Adding a flow or stage must not require a change to the graph engine\.
@@ -258,9 +246,9 @@ As a tech lead,<br>I want the agent to refuse to implement before a specificatio
 
 Acceptance Criteria:
 
-- Given a delivery run at the context stage with no specification artifact, when routing is evaluated, then advancing is denied, implementation is reported as blocked, and the missing artifact is named\.
-- Given the specification artifact exists, when routing is evaluated, then the run advances to the next stage\.
-- Given a stage requires a design decision, when the design flag is false, then the run routes directly to build and skips design\.
+- Given a delivery run at the context stage without `01-context.md`, when routing is evaluated, then advancing is denied and the missing artifact is named\.
+- Given `02-spec.md` exists, when `design_required` is false, then the run routes directly to `build`\.
+- Given `02-spec.md` exists, when `design_required` is true, then the run routes to `design` and requires `03-design.md` before build\.
 - Given every gate evaluation, when the transition is computed, then a record is appended to the run trail\.
 
 ### US\-003: Run independent bounded reviews
@@ -319,13 +307,14 @@ Acceptance Criteria:
 
 ### US\-008: Use the right flow for the work
 
-As a tech lead,<br>I want uncertainty, implementation, architecture, and incident learning to have distinct flows,<br>So that each type of work produces the evidence it needs\.
+As a tech lead,<br>I want Discovery, Delivery, and Postmortem to have distinct flows,<br>So that each type of work produces the evidence it needs\.
 
 Acceptance Criteria:
 
-- Given an ambiguous request, when it is classified, then it can enter Discovery and cannot be marked complete without a decision and handoff\.
-- Given an architecture-sensitive request, when it enters SDD, then the SDD review and decision are required before handoff\.
-- Given an incident, when Postmortem is selected, then timeline, causes, actions, and review are required before completion\.
+- Given a new Epic, when Discovery is selected, then mapping is required before completion\.
+- Given an SDD request, when `design_required` is false, then Delivery routes from `SPEC` directly to `BUILD`\.
+- Given an SDD request, when `design_required` is true, then `DESIGN` is required between `SPEC` and `BUILD`\.
+- Given an incident, when Postmortem is selected, then `01-triage.md`, `02-root-cause.md`, `03-actions.md`, and `04-follow-up.md` are required before completion\.
 - Given a graph is selected, when the graph is validated, then every declared stage is reachable and every transition target exists\.
 
 ## 15\. Analytics and Instrumentation

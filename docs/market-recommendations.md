@@ -14,10 +14,10 @@ This foundation uses current public practices as input, while keeping the runtim
 
 ## SpecJam design decisions
 
-- **Graph-first orchestration:** Discovery, Delivery, SDD, Bugfix, Postmortem, and Daily are declarative graphs validated before execution.
+- **Graph-first orchestration:** Discovery, Delivery, and Postmortem are declarative graphs validated before execution.
 - **Proportional effort:** L0–L3 classification keeps lookup work light while routing ambiguous or critical work through Discovery and stronger gates.
-- **Architecture before implementation:** The SDD flow makes constraints, design decisions, review findings, and handoff obligations durable.
-- **Learning after failure:** The Postmortem flow keeps incident evidence, causal analysis, actions, and review separate so learning is not lost in a chat transcript.
+- **Explicit delivery gates:** Delivery implements SDD as `SPEC → DESIGN? → BUILD → VALIDATE`, with design controlled by an explicit flag.
+- **Learning after failure:** The Postmortem flow keeps triage, root cause, actions, and follow-up separate so learning is not lost in a chat transcript.
 - **Portable skills:** `SKILL.md` remains readable by agents and people; `rws.json` makes routing, workflow, semantics, and attachments machine-checkable.
 
 ## Sources used for design input

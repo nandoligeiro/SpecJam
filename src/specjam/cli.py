@@ -72,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     flow_commands = flow.add_subparsers(dest="flow_command", required=True)
     scaffold = flow_commands.add_parser("scaffold")
     scaffold.add_argument("--target", default=".")
-    scaffold.add_argument("--flow", required=True, choices=("daily", "discovery", "delivery", "sdd", "bugfix", "postmortem"))
+    scaffold.add_argument("--flow", required=True, choices=("discovery", "delivery", "postmortem"))
     scaffold.add_argument("--slug", required=True)
     return parser
 

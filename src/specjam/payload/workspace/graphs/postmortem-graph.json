@@ -1,0 +1,47 @@
+{
+  "graph": "postmortem",
+  "version": "0.1.0",
+  "start": "triage",
+  "terminal": "done",
+  "nodes": {
+    "triage": {
+      "agent": "triage-agent",
+      "required_artifacts": ["01-triage.md"],
+      "next": "root-cause",
+      "implementation_blocked": true,
+      "blocking_reason": "Root cause is not complete"
+    },
+    "root-cause": {
+      "agent": "root-cause-agent",
+      "required_artifacts": ["02-root-cause.md"],
+      "subagents": [
+        {"role": "observability", "agent": "specjam-observability-reviewer", "read_only": true},
+        {"role": "architecture", "agent": "specjam-architecture-reviewer", "read_only": true}
+      ],
+      "next": "actions",
+      "implementation_blocked": true,
+      "blocking_reason": "Action items are not defined"
+    },
+    "actions": {
+      "agent": "actions-agent",
+      "required_artifacts": ["03-actions.md"],
+      "next": "follow-up",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "follow-up": {
+      "agent": "pm-follow-up-agent",
+      "required_artifacts": ["04-follow-up.md"],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "done": {
+      "agent": "none",
+      "required_artifacts": [],
+      "next": "done",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    }
+  }
+}
