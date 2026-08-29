@@ -23,17 +23,20 @@ Each graph contains an id, version, start stage, terminal stages, and nodes. A n
 - ordered transitions with optional boolean flag predicates;
 - bounded reviewer roles;
 - one synthesis writer;
-- a blocking policy and optional Spec Kit mapping.
+- a blocking policy and optional extension metadata.
 
 The engine validates unknown targets, duplicate conditions, duplicate reviewers, terminal transitions, missing agents, and unreachable nodes. Cycles are allowed for future retry/convergence flows, but no implicit transition is invented.
 
-## Three foundation graphs
+## Foundation graphs
 
 | Graph | Use | Key stages |
 | --- | --- | --- |
 | `daily` | L0/L1 proportional work | intake → classify → lookup/execute/handoff → capture |
+| `discovery` | Uncertain or ambiguous work | frame → research → options → decision → handoff |
 | `delivery` | L2/L3 features | context → specification → clarify → plan → checklist → tasks → analyze → optional design → build → converge |
+| `sdd` | Software Design Document | context → constraints → design → review → decision → handoff |
 | `bugfix` | evidence-first fixes | assess → reproduce → diagnose → fix → verify |
+| `postmortem` | Incident learning | incident → timeline → causes → actions → postmortem → review |
 
 ## RWSA skill contract
 
@@ -54,4 +57,3 @@ Review fan-out is data-driven. Every reviewer request is limited to `read` and `
 ## Installer boundary
 
 The installer writes only `.specjam/` plus the root discovery bridge and additive ignore rules. It records content hashes in `.specjam/lock.json`, preserves local edits by default during update, and never resolves paths outside the caller's repository. The archive builder stages only `src/specjam`, so local state and application source cannot enter the artifact.
-

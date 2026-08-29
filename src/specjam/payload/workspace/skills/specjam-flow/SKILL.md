@@ -1,6 +1,6 @@
 ---
 name: specjam-flow
-description: Select and execute a SpecJam delivery, bugfix, or daily flow with deterministic artifact gates, bounded reviews, a single synthesis writer, and an append-only run trail. Use when an agent is asked to begin or continue engineering work in a SpecJam repository.
+description: Select and execute a SpecJam discovery, delivery, SDD, bugfix, postmortem, or daily flow with deterministic artifact gates, bounded reviews, a single synthesis writer, and an append-only run trail. Use when an agent is asked to begin or continue engineering work in a SpecJam repository.
 license: Proprietary
 metadata:
   specjam_version: "0.1.0"
@@ -16,7 +16,7 @@ Activate for engineering requests that must be staged, audited, or resumed. Do n
 ## Workflow
 
 1. Classify the request as L0, L1, L2, or L3.
-2. Select `daily`, `delivery`, or `bugfix`.
+2. Select `daily`, `discovery`, `delivery`, `sdd`, `bugfix`, or `postmortem`.
 3. Read the current stage and all required artifacts.
 4. Evaluate the pure route. If a required artifact is absent, name it and stop.
 5. Dispatch declared reviewers with `read` and `search` only.

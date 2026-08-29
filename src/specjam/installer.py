@@ -19,6 +19,58 @@ MANAGED_ROOT = ".specjam"
 LOCK_NAME = "lock.json"
 BRIDGE_NAME = "AGENTS.md"
 
+FLOW_TEMPLATES: dict[str, dict[str, str]] = {
+    "daily": {
+        "answer.md": "# Answer\n\n## Finding\n\n## Evidence\n",
+        "result.md": "# Result\n\n## Change\n\n## Verification\n",
+        "handoff.md": "# Handoff\n\n## Context\n\n## Next owner\n\n## Blockers\n",
+        "daily.md": "# Daily record\n\n## Context\n\n## Decisions\n\n## Evidence\n\n## Blockers\n",
+    },
+    "discovery": {
+        "problem.md": "# Problem\n\n## User outcome\n\n## Scope\n\n## Evidence\n",
+        "research.md": "# Research\n\n## Questions\n\n## Findings\n\n## Sources\n",
+        "options.md": "# Options\n\n## Option A\n\n## Option B\n\n## Trade-offs\n",
+        "decision.md": "# Decision\n\n## Chosen direction\n\n## Rationale\n\n## Rejected options\n",
+        "discovery.md": "# Discovery handoff\n\n## Problem\n\n## Decision\n\n## Delivery entry criteria\n",
+    },
+    "delivery": {
+        "context.md": "# Context\n\n## Problem\n\n## Evidence\n\n## Blockers\n",
+        "spec.md": "# Specification\n\n## User outcome\n\n## Requirements\n\n## Acceptance criteria\n",
+        "clarification.md": "# Clarification\n\n## Questions\n\n## Answers\n\n## Assumptions\n",
+        "plan.md": "# Plan\n\n## Approach\n\n## Dependencies\n\n## Risks\n",
+        "checklist.md": "# Checklist\n\n- [ ] Validate scope\n- [ ] Validate risks\n",
+        "tasks.md": "# Tasks\n\n- [ ] Define the first executable task\n",
+        "analysis.md": "# Analysis\n\n## Findings\n\n## Decision\n",
+        "design.md": "# Design\n\n## Decision\n\n## Alternatives\n\n## Consequences\n",
+        "implementation.md": "# Implementation\n\n## Changes\n\n## Evidence\n",
+        "verification.md": "# Verification\n\n## Evidence\n\n## Result\n",
+    },
+    "sdd": {
+        "context.md": "# Design context\n\n## Problem\n\n## Drivers\n\n## Constraints\n",
+        "constraints.md": "# Constraints\n\n## Functional\n\n## Operational\n\n## Security\n",
+        "sdd.md": "# Software Design Document\n\n## Context\n\n## Architecture\n\n## Interfaces\n\n## Data\n\n## Failure modes\n",
+        "sdd-review.md": "# SDD review\n\n## Findings\n\n## Open questions\n\n## Recommendation\n",
+        "sdd-decision.md": "# SDD decision\n\n## Approved design\n\n## Conditions\n\n## Exceptions\n",
+        "sdd-handoff.md": "# SDD handoff\n\n## Implementation guidance\n\n## Verification obligations\n",
+    },
+    "bugfix": {
+        "report.md": "# Bug report\n\n## Symptom\n\n## Impact\n\n## Evidence\n",
+        "reproduction.md": "# Reproduction\n\n## Preconditions\n\n## Steps\n\n## Expected vs actual\n",
+        "diagnosis.md": "# Diagnosis\n\n## Root cause\n\n## Contributing factors\n",
+        "fix-plan.md": "# Fix plan\n\n## Change\n\n## Risks\n",
+        "implementation.md": "# Implementation\n\n## Changes\n\n## Evidence\n",
+        "verification.md": "# Verification\n\n## Evidence\n\n## Result\n",
+    },
+    "postmortem": {
+        "incident.md": "# Incident\n\n## Impact\n\n## Detection\n\n## Scope\n",
+        "timeline.md": "# Timeline\n\n| Time | Event | Evidence |\n| --- | --- | --- |\n",
+        "causes.md": "# Causes\n\n## Proximate causes\n\n## Systemic conditions\n\n## Evidence\n",
+        "actions.md": "# Actions\n\n- [ ] Define an owner and due date for each corrective action\n",
+        "postmortem.md": "# Postmortem\n\n## Summary\n\n## Impact\n\n## Causes\n\n## Actions\n",
+        "postmortem-review.md": "# Postmortem review\n\n## Completeness\n\n## Safety and privacy\n\n## Approval\n",
+    },
+}
+
 
 def _payload_root():
     return files("specjam.payload")
@@ -246,13 +298,7 @@ def scaffold_flow(target: str | Path, flow: str, slug: str) -> Path:
     load_graph(graph_path)
     work = root / MANAGED_ROOT / "work" / slug
     work.mkdir(parents=True, exist_ok=True)
-    templates = {
-        "context.md": "# Context\n\n## Problem\n\n## Evidence\n\n## Blockers\n",
-        "spec.md": "# Specification\n\n## User outcome\n\n## Requirements\n\n## Acceptance criteria\n",
-        "design.md": "# Design\n\n## Decision\n\n## Alternatives\n\n## Consequences\n",
-        "tasks.md": "# Tasks\n\n- [ ] Define the first executable task\n",
-        "verification.md": "# Verification\n\n## Evidence\n\n## Result\n",
-    }
+    templates = FLOW_TEMPLATES[flow]
     for name, content in templates.items():
         _write_if_changed(work / name, content.encode("utf-8"))
     return work

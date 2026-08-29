@@ -45,7 +45,18 @@ class InstallerTests(unittest.TestCase):
             self.assertTrue((work / "spec.md").exists())
             self.assertTrue((work / "verification.md").exists())
 
+            discovery = scaffold_flow(target, "discovery", "discovery-demo")
+            self.assertTrue((discovery / "problem.md").exists())
+            self.assertTrue((discovery / "discovery.md").exists())
+
+            sdd = scaffold_flow(target, "sdd", "sdd-demo")
+            self.assertTrue((sdd / "sdd.md").exists())
+            self.assertTrue((sdd / "sdd-handoff.md").exists())
+
+            postmortem = scaffold_flow(target, "postmortem", "incident-demo")
+            self.assertTrue((postmortem / "timeline.md").exists())
+            self.assertTrue((postmortem / "postmortem.md").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
-

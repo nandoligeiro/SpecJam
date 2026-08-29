@@ -1,0 +1,16 @@
+{
+  "id": "discovery",
+  "version": "0.1.0",
+  "description": "Evidence-first discovery flow for uncertain or ambiguous work.",
+  "start_stage": "intake",
+  "terminal_stages": ["complete"],
+  "nodes": [
+    {"id": "intake", "agent": "specjam.orchestrator", "transitions": [{"to": "frame"}]},
+    {"id": "frame", "agent": "specjam.discovery", "required_artifacts": ["problem.md"], "transitions": [{"to": "research"}], "block_implementation": true, "blocking_reason": "Implementation is blocked until the problem and desired outcome are explicit."},
+    {"id": "research", "agent": "specjam.researcher", "required_artifacts": ["research.md"], "transitions": [{"to": "options"}], "block_implementation": true},
+    {"id": "options", "agent": "specjam.discovery", "required_artifacts": ["options.md"], "transitions": [{"to": "decision"}], "block_implementation": true},
+    {"id": "decision", "agent": "specjam.synthesis", "required_artifacts": ["decision.md"], "reviewers": ["domain", "architecture"], "writer": "specjam.synthesis", "transitions": [{"to": "handoff"}], "block_implementation": true, "blocking_reason": "Implementation is blocked until the discovery decision is recorded."},
+    {"id": "handoff", "agent": "specjam.orchestrator", "required_artifacts": ["discovery.md"], "transitions": [{"to": "complete"}]},
+    {"id": "complete", "agent": "specjam.orchestrator"}
+  ]
+}

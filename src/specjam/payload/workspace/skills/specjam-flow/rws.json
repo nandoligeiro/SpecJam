@@ -1,8 +1,8 @@
 {
-  "routing": {"name": "specjam-flow", "description": "Routes staged engineering work through artifact gates and bounded review.", "triggers": ["engineering request", "bugfix", "feature", "daily work"], "anti_triggers": ["casual conversation"]},
+  "routing": {"name": "specjam-flow", "description": "Routes staged engineering work through artifact gates and bounded review.", "triggers": ["engineering request", "discovery", "feature", "SDD", "bugfix", "postmortem", "daily work"], "anti_triggers": ["casual conversation"]},
   "workflow": [
     {"id": "classify", "objective": "Choose proportional effort", "action": "Classify the request L0-L3", "verify": "A level and graph are recorded", "next": ["select-flow"]},
-    {"id": "select-flow", "objective": "Choose the graph", "action": "Select daily, delivery, or bugfix", "verify": "The graph validates", "next": ["gate"]},
+    {"id": "select-flow", "objective": "Choose the graph", "action": "Select daily, discovery, delivery, SDD, bugfix, or postmortem", "verify": "The graph validates", "next": ["gate"]},
     {"id": "gate", "objective": "Protect the stage boundary", "action": "Evaluate required artifacts and conditions", "verify": "A deterministic decision is returned", "next": ["review"]},
     {"id": "review", "objective": "Surface independent risks", "action": "Dispatch bounded read-only reviewers", "verify": "All results are preserved", "next": ["synthesize"]},
     {"id": "synthesize", "objective": "Update one shared artifact", "action": "Use exactly one synthesis writer", "verify": "The trail records the transition", "next": []}

@@ -41,6 +41,27 @@ class GraphEngineTests(unittest.TestCase):
         self.assertEqual(with_design.next_stage, "design")
         self.assertEqual(without_design.next_stage, "build")
 
+    def test_discovery_requires_decision_before_handoff(self):
+        graph = load_graph(GRAPH_DIR / "discovery.json")
+        decision = route(graph, RouteState("decision", frozenset({"options.md"})))
+        self.assertFalse(decision.may_advance)
+        self.assertEqual(decision.missing_artifacts, ("decision.md",))
+        complete = route(graph, RouteState("decision", frozenset({"decision.md"})))
+        self.assertTrue(complete.may_advance)
+        self.assertEqual(complete.next_stage, "handoff")
+
+    def test_sdd_and_postmortem_expose_bounded_review_gates(self):
+        sdd = load_graph(GRAPH_DIR / "sdd.json")
+        sdd_review = route(sdd, RouteState("review", frozenset({"sdd-review.md"})))
+        self.assertEqual(sdd_review.reviewers, ("architecture", "security", "observability", "tests"))
+        self.assertEqual(sdd_review.writer, "specjam.synthesis")
+
+        postmortem = load_graph(GRAPH_DIR / "postmortem.json")
+        causes = route(postmortem, RouteState("causes", frozenset({"causes.md"})))
+        self.assertTrue(causes.may_advance)
+        self.assertEqual(causes.next_stage, "actions")
+        self.assertEqual(len(causes.reviewers), 5)
+
     def test_every_graph_validates(self):
         for path in GRAPH_DIR.glob("*.json"):
             graph = load_graph(path)

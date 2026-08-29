@@ -28,9 +28,15 @@ natural language
        v
   classification -------> daily graph (L0/L1)
        |
+       +-----------------> discovery graph (uncertain work)
+       |
        +-----------------> delivery graph (L2/L3)
        |
+       +-----------------> SDD graph (architecture decisions)
+       |
        +-----------------> bugfix graph (explicit bug flow)
+       |
+       +-----------------> postmortem graph (learning after incidents)
 
 graph + state --> pure route --> decision --> append-only trail
                                       |
@@ -41,9 +47,18 @@ graph + state --> pure route --> decision --> append-only trail
 
 The route function never writes files, invokes tools, or calls a model. Persistence belongs to the trail adapter. This split makes the highest-risk policy easy to test.
 
-## Spec Kit as reference
+## First-class flows
 
-The [GitHub Spec Kit](https://github.com/github/spec-kit) is used only as a market reference for the intent-first vocabulary: constitution, specify, clarify, plan, checklist, tasks, analyze, implement, and converge. SpecJam deliberately adds its own graph runtime, proportional L0–L3 routing, reviewer capability boundaries, and append-only run trail. Spec Kit is neither installed nor required at runtime.
+SpecJam keeps each method explicit and data-driven:
+
+- **Discovery** turns uncertainty into a problem statement, evidence, options, and a decision.
+- **Delivery** moves a validated request through specification, planning, implementation, and convergence gates.
+- **SDD** produces and reviews a Software Design Document before architecture-sensitive implementation.
+- **Bugfix** establishes reproduction and diagnosis before a fix is accepted.
+- **Postmortem** turns an incident record into causes, actions, and durable learning.
+- **Daily** routes small work proportionally through L0–L3.
+
+The flows are independent JSON graphs under `src/specjam/payload/workspace/graphs/`; organizations can add or replace graphs without changing the routing engine.
 
 ## RWSA contract
 
