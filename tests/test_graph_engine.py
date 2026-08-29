@@ -12,6 +12,13 @@ GRAPH_DIR = Path(__file__).parents[1] / "src/specjam/payload/workspace/graphs"
 
 
 class GraphEngineTests(unittest.TestCase):
+    def test_context_blocks_without_specification(self):
+        graph = load_graph(GRAPH_DIR / "delivery.json")
+        decision = route(graph, RouteState("context", frozenset({"context.md"})))
+        self.assertFalse(decision.may_advance)
+        self.assertTrue(decision.blocked)
+        self.assertEqual(decision.missing_artifacts, ("spec.md",))
+
     def test_delivery_blocks_without_specification(self):
         graph = load_graph(GRAPH_DIR / "delivery.json")
         decision = route(graph, RouteState("specification"))
@@ -70,4 +77,3 @@ class GraphEngineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

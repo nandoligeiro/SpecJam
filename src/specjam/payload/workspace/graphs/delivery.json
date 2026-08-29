@@ -6,7 +6,7 @@
   "terminal_stages": ["complete"],
   "nodes": [
     {"id": "intake", "agent": "specjam.orchestrator", "transitions": [{"to": "context"}]},
-    {"id": "context", "agent": "specjam.context", "required_artifacts": ["context.md"], "transitions": [{"to": "specification"}], "block_implementation": true, "blocking_reason": "Context must be durable before specification work begins."},
+    {"id": "context", "agent": "specjam.context", "required_artifacts": ["context.md", "spec.md"], "transitions": [{"to": "specification"}], "block_implementation": true, "blocking_reason": "Implementation is blocked until the context includes a durable specification."},
     {"id": "specification", "agent": "specjam.specifier", "required_artifacts": ["spec.md"], "reviewers": ["domain", "architecture", "security", "observability", "tests"], "writer": "specjam.synthesis", "transitions": [{"to": "clarify"}], "block_implementation": true, "blocking_reason": "Implementation is blocked until the specification exists and has passed review."},
     {"id": "clarify", "agent": "specjam.clarifier", "required_artifacts": ["clarification.md"], "transitions": [{"to": "plan"}], "block_implementation": true},
     {"id": "plan", "agent": "specjam.planner", "required_artifacts": ["plan.md"], "transitions": [{"to": "checklist"}], "metadata": {"speckit_command": "/speckit.plan"}},
@@ -19,4 +19,3 @@
     {"id": "complete", "agent": "specjam.orchestrator"}
   ]
 }
-
