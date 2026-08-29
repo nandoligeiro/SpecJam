@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import shutil
 import stat
+import sys
 import tempfile
 import zipfile
 import zipapp
@@ -15,6 +16,9 @@ from pathlib import Path
 
 def build(output_dir: Path) -> tuple[Path, Path]:
     repository = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(repository / "src"))
+    from specjam import __version__
+
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="specjam-archive-") as temp:
         staging = Path(temp)
@@ -24,7 +28,7 @@ def build(output_dir: Path) -> tuple[Path, Path]:
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
         )
         (staging / "__main__.py").write_text("from specjam.cli import main\nraise SystemExit(main())\n", encoding="utf-8")
-        archive = output_dir / "specjam-0.1.0.pyz"
+        archive = output_dir / f"specjam-{__version__}.pyz"
         zipapp.create_archive(staging, archive, interpreter="/usr/bin/env python3", compressed=True)
     data = archive.read_bytes()
     with zipfile.ZipFile(archive) as bundle:

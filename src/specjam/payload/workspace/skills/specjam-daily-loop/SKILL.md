@@ -3,7 +3,7 @@ name: specjam-daily-loop
 description: Classify daily engineering work into L0-L3 and capture context, decisions, evidence, and blockers with proportional effort. Use for lookups, small bounded changes, and triage before choosing a full delivery flow.
 license: Proprietary
 metadata:
-  specjam_version: "0.1.0"
+  specjam_version: "0.0.1"
   contract: RWSA
 ---
 

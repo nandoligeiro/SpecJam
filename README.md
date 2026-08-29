@@ -10,12 +10,28 @@ The first release combines three ideas:
 
 ## Quick start
 
+Run SpecJam directly from PyPI with `uvx`, or install it persistently with `uv tool`:
+
 ```bash
-python -m specjam install
-python -m specjam verify
-python -m specjam inspect
-python -m specjam classify "Add a new payment capability"
-python -m specjam flow scaffold --flow delivery --slug payment-capability
+uvx specjam install
+uv tool install specjam
+specjam install
+```
+
+To pin this release explicitly:
+
+```bash
+uvx --from 'specjam==0.0.1' specjam --help
+```
+
+For a source checkout, `uv run` keeps the package isolated and reproducible:
+
+```bash
+uv run specjam install
+uv run specjam verify
+uv run specjam inspect
+uv run specjam classify "Add a new payment capability"
+uv run specjam flow scaffold --flow delivery --slug payment-capability
 ```
 
 The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existing bridge files are preserved unless `--force` is supplied. Runtime state is ignored; the lockfile and managed definitions remain inspectable.
@@ -63,9 +79,17 @@ Skill = Routing + (Workflow + Semantics + Attachments)
 ## Development
 
 ```bash
-python -m unittest discover -s tests -v
-PYTHONPATH=src python -m specjam graph validate src/specjam/payload/workspace/graphs/delivery-graph.json
-python scripts/build_archive.py
+uv run --no-sync python -m unittest discover -s tests -v
+uv run specjam graph validate src/specjam/payload/workspace/graphs/delivery-graph.json
+uv build --no-sources
+```
+
+The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
+
+```bash
+uv version 0.0.1
+uv build --no-sources
+uv publish
 ```
 
 The project intentionally keeps the engine dependency-free. Packaging helpers may use the Python standard library only; third-party model, agent, tracker, and cloud integrations are extension points.

@@ -4,13 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specjam"
-version = "0.1.0"
+version = "0.0.1"
 description = "A harness-neutral agentic engineering workspace built around flow graphs and RWSA skills."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Fernando Costa" }]
-license = { text = "Proprietary" }
+license = "LicenseRef-Proprietary"
+keywords = ["agents", "engineering-workflow", "flow-graphs", "rws", "cli"]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/nandoligeiro/SpecJam"
+Repository = "https://github.com/nandoligeiro/SpecJam"
+Issues = "https://github.com/nandoligeiro/SpecJam/issues"
 
 [project.scripts]
 specjam = "specjam.cli:main"
@@ -20,9 +26,28 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["specjam", "specjam.*"]
+exclude = ["specjam.payload.__pycache__", "specjam.payload.__pycache__.*"]
 
 [tool.setuptools.package-data]
-"specjam.payload" = ["**/*"]
+"specjam.payload" = [
+  "ignore-rules.txt",
+  "bridge/*.md",
+  "workspace/*.md",
+  "workspace/*.json",
+  "workspace/graphs/*.json",
+  "workspace/references/*.md",
+  "workspace/runtime/*.md",
+  "workspace/skills/*/*.md",
+  "workspace/skills/*/*.json",
+  "workspace/skills/*/references/*.md",
+]
+
+[tool.setuptools.exclude-package-data]
+"specjam.payload" = ["**/__pycache__/*", "**/*.py[cod]"]
+
+[tool.uv]
+package = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
