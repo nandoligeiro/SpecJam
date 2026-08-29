@@ -1,0 +1,17 @@
+{
+  "id": "daily",
+  "version": "0.1.0",
+  "description": "Proportional daily loop for lookup, bounded local work, or handoff.",
+  "start_stage": "intake",
+  "terminal_stages": ["complete"],
+  "nodes": [
+    {"id": "intake", "agent": "specjam.orchestrator", "transitions": [{"to": "classify"}]},
+    {"id": "classify", "agent": "specjam.classifier", "transitions": [{"to": "lookup", "when": "l0"}, {"to": "execute", "when": "l1"}, {"to": "handoff", "when": "l2"}, {"to": "handoff", "when": "l3"}]},
+    {"id": "lookup", "agent": "specjam.researcher", "required_artifacts": ["answer.md"], "transitions": [{"to": "capture"}]},
+    {"id": "execute", "agent": "specjam.implementer", "required_artifacts": ["result.md"], "transitions": [{"to": "capture"}]},
+    {"id": "handoff", "agent": "specjam.orchestrator", "required_artifacts": ["handoff.md"], "transitions": [{"to": "capture"}], "block_implementation": true},
+    {"id": "capture", "agent": "specjam.recorder", "required_artifacts": ["daily.md"], "transitions": [{"to": "complete"}]},
+    {"id": "complete", "agent": "specjam.orchestrator"}
+  ]
+}
+

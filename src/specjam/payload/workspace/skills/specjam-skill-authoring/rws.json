@@ -1,0 +1,13 @@
+{
+  "routing": {"name": "specjam-skill-authoring", "description": "Authors and validates reusable RWSA skills.", "triggers": ["create a skill", "review a skill", "package a workflow"], "anti_triggers": ["one-off answer"]},
+  "workflow": [
+    {"id": "route", "objective": "Define activation", "action": "Write triggers and anti-triggers", "verify": "A downstream agent can decide whether to activate", "next": ["workflow"]},
+    {"id": "workflow", "objective": "Make procedure executable", "action": "Write ordered steps and branches", "verify": "Each step has objective, action, and verification", "next": ["semantics"]},
+    {"id": "semantics", "objective": "Preserve behavioral rules", "action": "Record decisions, safety, and rollback", "verify": "Failure and approval behavior is explicit", "next": ["attachments"]},
+    {"id": "attachments", "objective": "Bind runtime dependencies", "action": "Declare resources, tools, state, and outputs", "verify": "Every reference resolves", "next": ["replay"]},
+    {"id": "replay", "objective": "Test transferability", "action": "Replay normal and failure paths", "verify": "No high-priority RWSA finding remains", "next": []}
+  ],
+  "semantics": {"invariants": ["frontmatter name matches parent directory", "steps are ordered and verifiable"], "decisions": ["split long references for progressive disclosure"], "safety_rules": ["never invent unobserved safety behavior"], "rollback": ["keep the prior contract until replay passes"]},
+  "attachments": [{"id": "format", "kind": "reference", "path": "references/RWSA.md", "required": true, "scope": "skill"}],
+  "outputs": ["SKILL.md", "rws.json", "validation report"]
+}

@@ -1,0 +1,12 @@
+{
+  "routing": {"name": "specjam-daily-loop", "description": "Classifies work proportionally and records a durable daily loop.", "triggers": ["lookup", "small change", "daily work", "triage"], "anti_triggers": ["unbounded critical change without delivery handoff"]},
+  "workflow": [
+    {"id": "capture", "objective": "Record the request", "action": "Capture context and evidence", "verify": "The request is durable", "next": ["classify"]},
+    {"id": "classify", "objective": "Choose effort", "action": "Assign L0-L3", "verify": "The level and next flow are explicit", "next": ["route"]},
+    {"id": "route", "objective": "Keep ceremony proportional", "action": "Use daily for L0/L1 and delivery for L2/L3", "verify": "Critical work cannot bypass delivery", "next": ["record"]},
+    {"id": "record", "objective": "Leave durable context", "action": "Write result, decisions, evidence, and blockers", "verify": "An auditable daily record exists", "next": []}
+  ],
+  "semantics": {"invariants": ["L3 requires delivery", "external posting needs human confirmation"], "decisions": ["classification remains deterministic and overrideable with explicit signals"], "safety_rules": ["keep run context local by default"], "rollback": ["reopen as delivery when risk increases"]},
+  "attachments": [{"id": "daily-graph", "kind": "resource", "path": ".specjam/graphs/daily.json", "required": true, "scope": "skill"}],
+  "outputs": ["classification", "daily record", "handoff when required"]
+}

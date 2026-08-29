@@ -1,0 +1,12 @@
+{
+  "routing": {"name": "specjam-trace-to-skill", "description": "Reconstructs an executable RWSA skill from interaction evidence.", "triggers": ["convert trace to skill", "distill workflow", "learn from run"], "anti_triggers": ["free-form summary"]},
+  "workflow": [
+    {"id": "segment", "objective": "Find procedural units", "action": "Segment traces into candidate steps", "verify": "Units describe actions rather than formatting", "next": ["classify-evidence"]},
+    {"id": "classify-evidence", "objective": "Separate RWSA evidence", "action": "Classify observations as W, S, or A", "verify": "Provenance is attached to claims", "next": ["merge-paths"]},
+    {"id": "merge-paths", "objective": "Preserve behavior across scenarios", "action": "Align common steps and reconcile branches", "verify": "Fallbacks, approvals, and termination survive", "next": ["refine"]},
+    {"id": "refine", "objective": "Improve replay fidelity", "action": "Run coverage, consistency, and executability checks", "verify": "No high-priority WSA error remains or budget is exhausted", "next": []}
+  ],
+  "semantics": {"invariants": ["provenance is never discarded", "failure paths remain visible"], "decisions": ["repair W for missing edges, S for vague criteria, A for missing bindings"], "safety_rules": ["unobserved claims stay marked unobserved"], "rollback": ["retain the previous skill until replay validation succeeds"]},
+  "attachments": [{"id": "evidence", "kind": "state", "path": ".specjam/runs", "required": true, "scope": "run"}, {"id": "reference", "kind": "reference", "path": "references/RWSA.md", "required": true, "scope": "skill"}],
+  "outputs": ["evidence map", "candidate rws.json", "candidate SKILL.md", "refinement findings"]
+}

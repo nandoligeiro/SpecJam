@@ -1,0 +1,11 @@
+{
+  "routing": {"name": "specjam-bounded-review", "description": "Dispatches independent read-only reviewers and plans one synthesis writer.", "triggers": ["review specification", "review diagnosis", "risk review"], "anti_triggers": ["implementation", "external communication"]},
+  "workflow": [
+    {"id": "dispatch", "objective": "Create bounded reviews", "action": "Grant each reviewer read and search only", "verify": "Write and execute scope is refused", "next": ["collect"]},
+    {"id": "collect", "objective": "Preserve independent evidence", "action": "Collect every result", "verify": "Failures and blocked results remain visible", "next": ["synthesize"]},
+    {"id": "synthesize", "objective": "Update a shared artifact once", "action": "Use exactly one writer", "verify": "Writer identity is recorded", "next": []}
+  ],
+  "semantics": {"invariants": ["reviewers are read-only", "one writer"], "decisions": ["degrade to a built-in reviewer when custom profiles are unsupported"], "safety_rules": ["never grant write or execute scope"], "rollback": ["retain the pre-review artifact if synthesis fails"]},
+  "attachments": [{"id": "graph", "kind": "resource", "path": ".specjam/graphs", "required": true, "scope": "skill"}],
+  "outputs": ["review requests", "review aggregate", "synthesis plan"]
+}

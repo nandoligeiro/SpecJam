@@ -1,0 +1,22 @@
+{
+  "id": "delivery",
+  "version": "0.1.0",
+  "description": "Full specification-first delivery flow with optional design and bounded reviews.",
+  "start_stage": "intake",
+  "terminal_stages": ["complete"],
+  "nodes": [
+    {"id": "intake", "agent": "specjam.orchestrator", "transitions": [{"to": "context"}]},
+    {"id": "context", "agent": "specjam.context", "required_artifacts": ["context.md"], "transitions": [{"to": "specification"}], "block_implementation": true, "blocking_reason": "Context must be durable before specification work begins."},
+    {"id": "specification", "agent": "specjam.specifier", "required_artifacts": ["spec.md"], "reviewers": ["domain", "architecture", "security", "observability", "tests"], "writer": "specjam.synthesis", "transitions": [{"to": "clarify"}], "block_implementation": true, "blocking_reason": "Implementation is blocked until the specification exists and has passed review."},
+    {"id": "clarify", "agent": "specjam.clarifier", "required_artifacts": ["clarification.md"], "transitions": [{"to": "plan"}], "block_implementation": true},
+    {"id": "plan", "agent": "specjam.planner", "required_artifacts": ["plan.md"], "transitions": [{"to": "checklist"}], "metadata": {"speckit_command": "/speckit.plan"}},
+    {"id": "checklist", "agent": "specjam.quality", "required_artifacts": ["checklist.md"], "transitions": [{"to": "tasks"}], "metadata": {"speckit_command": "/speckit.checklist"}},
+    {"id": "tasks", "agent": "specjam.planner", "required_artifacts": ["tasks.md"], "transitions": [{"to": "analyze"}], "metadata": {"speckit_command": "/speckit.tasks"}},
+    {"id": "analyze", "agent": "specjam.analyzer", "required_artifacts": ["analysis.md"], "transitions": [{"to": "design", "when": "design_required"}, {"to": "build", "when": "!design_required"}], "metadata": {"speckit_command": "/speckit.analyze"}},
+    {"id": "design", "agent": "specjam.architect", "required_artifacts": ["design.md"], "transitions": [{"to": "build"}], "block_implementation": true},
+    {"id": "build", "agent": "specjam.implementer", "required_artifacts": ["implementation.md"], "transitions": [{"to": "converge"}], "metadata": {"speckit_command": "/speckit.implement"}},
+    {"id": "converge", "agent": "specjam.verifier", "required_artifacts": ["verification.md"], "transitions": [{"to": "complete"}], "metadata": {"speckit_command": "/speckit.converge"}},
+    {"id": "complete", "agent": "specjam.orchestrator"}
+  ]
+}
+
