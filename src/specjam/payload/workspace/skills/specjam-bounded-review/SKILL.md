@@ -1,7 +1,7 @@
 ---
 name: specjam-bounded-review
 description: Run independent domain, architecture, security, observability, or test reviews as read-only analysis and preserve every result for one synthesis writer. Use before changing a shared engineering artifact.
-license: Proprietary - private repository
+license: Proprietary
 metadata:
   specjam_version: "0.1.0"
   contract: RWSA
@@ -31,4 +31,3 @@ Use when a graph stage declares reviewers. Do not use a reviewer as an implement
 
 - Review contract: `rws.json`
 - Graph declarations: `../../graphs/`
-

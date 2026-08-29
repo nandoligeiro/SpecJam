@@ -9,7 +9,7 @@ description = "A harness-neutral agentic engineering workspace built around flow
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Fernando Costa" }]
-license = { text = "Proprietary - private repository" }
+license = { text = "Proprietary" }
 dependencies = []
 
 [project.scripts]
@@ -26,4 +26,3 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-

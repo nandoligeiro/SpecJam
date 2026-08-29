@@ -1,7 +1,7 @@
 ---
 name: specjam-flow
 description: Select and execute a SpecJam delivery, bugfix, or daily flow with deterministic artifact gates, bounded reviews, a single synthesis writer, and an append-only run trail. Use when an agent is asked to begin or continue engineering work in a SpecJam repository.
-license: Proprietary - private repository
+license: Proprietary
 metadata:
   specjam_version: "0.1.0"
   contract: RWSA

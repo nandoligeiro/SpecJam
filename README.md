@@ -41,9 +41,9 @@ graph + state --> pure route --> decision --> append-only trail
 
 The route function never writes files, invokes tools, or calls a model. Persistence belongs to the trail adapter. This split makes the highest-risk policy easy to test.
 
-## Spec Kit relationship
+## Spec Kit as reference
 
-SpecJam adopts the useful intent-first sequence from [GitHub Spec Kit](https://github.com/github/spec-kit): constitution, specify, clarify, plan, checklist, tasks, analyze, implement, and converge. It deliberately adds a graph runtime, proportional L0–L3 routing, reviewer capability boundaries, and an append-only run trail. Spec Kit remains a compatible artifact vocabulary, not a hard dependency.
+The [GitHub Spec Kit](https://github.com/github/spec-kit) is used only as a market reference for the intent-first vocabulary: constitution, specify, clarify, plan, checklist, tasks, analyze, implement, and converge. SpecJam deliberately adds its own graph runtime, proportional L0–L3 routing, reviewer capability boundaries, and append-only run trail. Spec Kit is neither installed nor required at runtime.
 
 ## RWSA contract
 
@@ -67,4 +67,4 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-This is the initial private foundation: graph engine, RWSA contract, reviewers, classification, installer, archive packaging, core skills, and test coverage. Organization-specific domain packs and tracker adapters stay outside the core as required by the PRD.
+This is the initial public foundation: graph engine, RWSA contract, reviewers, classification, installer, archive packaging, core skills, and test coverage. Organization-specific domain packs and tracker adapters stay outside the core as required by the PRD.
