@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from importlib.resources import files
@@ -11,7 +12,8 @@ from specjam import __version__
 from specjam.graph_engine import load_graph
 
 
-assert __version__ == "0.0.1"
+expected_version = os.environ.get("SPECJAM_EXPECTED_VERSION", "0.0.1").removeprefix("v")
+assert __version__ == expected_version, (__version__, expected_version)
 
 subprocess.run([sys.executable, "-m", "specjam", "--help"], check=True, stdout=subprocess.DEVNULL)
 
