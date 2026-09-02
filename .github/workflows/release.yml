@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
-    branches:
-      - "release/v0.1.0"
 
 permissions: {}
 
@@ -32,12 +30,12 @@ jobs:
 
       - name: Smoke test wheel
         env:
-          SPECJAM_EXPECTED_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
+          SPECJAM_EXPECTED_VERSION: ${{ github.ref_name }}
         run: uv run --isolated --no-project --with dist/*.whl tests/smoke_test.py
 
       - name: Smoke test source distribution
         env:
-          SPECJAM_EXPECTED_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'v0.1.0' }}
+          SPECJAM_EXPECTED_VERSION: ${{ github.ref_name }}
         run: uv run --isolated --no-project --with dist/*.tar.gz tests/smoke_test.py
 
       - name: Upload distributions
