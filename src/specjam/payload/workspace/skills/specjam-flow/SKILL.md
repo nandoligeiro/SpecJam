@@ -1,7 +1,7 @@
 ---
 name: specjam-flow
 description: Select and execute a SpecJam Discovery, Delivery, or Postmortem flow with deterministic artifact gates, bounded reviews, and an append-only run trail. Use when an agent is asked to begin or continue engineering work in a SpecJam repository.
-license: Proprietary
+license: Apache-2.0
 metadata:
   specjam_version: "0.0.1"
   contract: RWSA

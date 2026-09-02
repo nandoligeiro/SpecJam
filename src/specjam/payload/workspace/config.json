@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "specjam_version": "0.1.0",
+  "specjam_version": "0.1.1",
   "default_graph": "delivery",
   "trail_directory": "runs",
   "aggregation": "opt-in",

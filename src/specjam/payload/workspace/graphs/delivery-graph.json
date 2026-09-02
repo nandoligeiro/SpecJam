@@ -1,6 +1,6 @@
 {
   "graph": "delivery",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "start": "context",
   "terminal": "done",
   "nodes": {

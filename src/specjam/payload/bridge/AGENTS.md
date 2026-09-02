@@ -1,79 +1,62 @@
-# AGENTS.md
+# SpecJam agent instructions
 
-Enterprise multi-agent engineering workspace. See `README.md` for the full overview.
+SpecJam is a harness-neutral engineering meta-harness. See `README.md` for the
+product overview and `.specjam/WORKSPACE.md` after installation for the managed
+workspace contract.
 
-## Three flows
+## Flows
 
-- **Discovery** (local developer workspace) — orchestrator, epic-agent, stories-agent, mapping-agent.
-- **Delivery** (local developer workspace) — orchestrator, feature-creation, spec, design, implementation, validation.
-- **Postmortem** (local developer workspace) — orchestrator, triage, root-cause, actions, follow-up.
+- **Discovery** turns an initiative into mapped stories and delivery increments.
+- **Delivery** follows `CONTEXT → SPEC → DESIGN? → BUILD → VALIDATE`.
+- **Postmortem** follows evidence, root-cause, actions, synthesis and follow-up.
 
-The conventional `.discovery/` and `projects/` folders are optional local working copies. Jira is the shared source of truth.
+Use the orchestrator for the active flow. Do not skip graph stages, artifact
+gates or required reviews.
 
-## Jira issue contract
+## Shared system of record
 
-- Epic work is represented by a Jira **Epic**.
-- Every Discovery Story is a Jira **Issue** with issue type **Environment & Infrastructure**.
-- Delivery Features are Jira **Issues** whose issue type follows the target project taxonomy.
-- `Story` and `Feature` are flow roles, not Jira issue types.
-- Handoffs must be possible from Jira without access to another developer's local SDD folder.
-- Do not include absolute local paths in Jira descriptions, PRDs or handoffs.
+- Tracker integrations are adapters; the core does not require a specific vendor.
+- Epic, Story and Feature describe flow roles, not vendor-specific issue types.
+- Handoffs must be understandable without another developer's local workspace.
+- Never write credentials, absolute local paths or private operational data into
+  shared descriptions, generated artifacts or run trails.
 
-## Main rule
+## Graph and session rules
 
-Operate through the orchestrator of the active flow unless a specialist is explicitly requested. Do not skip stages.
+- The graph coordinator owns state and transitions.
+- Record transitions in the append-only run trail.
+- Start a new implementation session for each increment.
+- Reviewer sessions are isolated and read-only.
+- Reviewers return findings and evidence; one synthesis step is the only writer.
+- Preserve failed or blocked results instead of silently advancing the graph.
 
-## Graph Engine and subagents
+## Engineering rules
 
-- Graphs: `graphs/delivery-graph.json`, `graphs/discovery-graph.json`, `graphs/postmortem-graph.json`; runtime: `graph_engine/engine.py`.
-- The graph coordinator owns state and transitions; do not let subagents skip gates or write to shared artifacts.
-- Record every transition through `graph_engine/runs.py` so a run stays auditable and resumable after an interrupted session.
-- Use the `specjam-*` Devin profiles for bounded read-only reviews when the graph node declares subagents.
-- Run domain, architecture, security, observability and test reviews independently when useful, then use one synthesis step as the only writer.
-- Preserve failed or blocked subagent results in the handoff; do not silently continue as if review completed.
+- Keep domain policy independent from frameworks and external systems.
+- Treat API and event schemas as explicit contracts.
+- Add resilience, security and observability when an integration requires them.
+- Prefer deterministic validation scripts for rules that must not be subjective.
+- Keep generated state, caches, credentials and machine-specific configuration
+  outside the package and committed source.
 
-## Architecture rules
+## Skills and harnesses
 
-- DDD + Hexagonal — domain does not depend on frameworks.
-- Interfaces are thin; infrastructure integrates with external systems.
-- OpenAPI is the HTTP contract.
-- Resilience and observability are mandatory for relevant integrations.
+- Skills are referenced as `provider/name@version` and resolved with provenance.
+- Harness adapters translate neutral session requests into vendor-specific calls.
+- Vendor SDKs, credentials and organization-specific domain packs belong in
+  external adapters or the consuming workspace, never in SpecJam core.
+- A workspace may configure Devin, Codex, Claude Code or a local runner without
+  changing the graph engine.
 
-## References
+## Verification
 
-- `.devin/rules/` — flow rules (`01-delivery.md`, `02-discovery.md`, `03-postmortem.md`, `70-goal-loop.md`).
-- `graphs/` — declarative graphs for delivery, discovery and postmortem, executed by `graph_engine/`.
-- `docs/engineering/goal-flow.md` — board mapping and end-to-end flow.
-- `daily/README.md` — lightweight daily loop and L0-L3 routing.
-- `schemas/` and `templates/daily/` — daily task and agent handoff contracts.
-- `.devin/skills/context-sync/SKILL.md` — weekly prioritization ceremony.
+Run the complete test suite before changing a graph, public contract, installer
+behavior or packaged payload:
 
-## Architecture Council skills
+```bash
+PYTHONPATH=src python -m unittest discover -s tests -v
+```
 
-- Architecture-advisor skills (discovery, system design, review, DDD, performance, observability, security, cloud cost, production readiness).
-- Native source of truth (invocable via `skill` tool): `.devin/skills/<name>/SKILL.md`.
-- Governance copies in `.engineering/skills/<name>/skill.md` are generated by `scripts/sync_governance_skills.py`; never edit them by hand.
-- Recommended flow and full list: see `README.md` → "Architecture Council skills".
-- Entry skill: `brainstorm-architect` (force discovery before any design/code).
-
-## Daily engineering loop
-
-- Use `scripts/daily.py` for the Markdown daily record and `scripts/classify_task.py` for L0-L3 classification.
-- Use `rtk` before compatible shell commands to reduce output/context consumption; use native commands only when no RTK subcommand exists or raw output is required.
-- Model routing (verify current names/prices with `/model`; promo pricing is temporary): SWE-1.7/GPT-5.6 Luna for L0-L1, Claude Sonnet 5/GPT-5.6 Terra for L2 (Adaptive at the L2/L3 border), Adaptive by default for L3, Claude Opus 5-4.8/GPT-5.6 Sol for deep architecture or critical multi-file work.
-- L0/L1 stay lightweight; L2 uses reduced SDD; L3 uses Brainstorm + full SDD.
-- Daily records are hybrid: Markdown for context/evidence, Jira for issues and worklogs.
-- Dated daily records under `daily/` are intentionally ignored; keep sensitive context out of committed files.
-
-## Jira timesheet
-
-- Operational skill/agent (not part of the Architecture Council): suggests and logs daily Jira worklogs from evidence (git commits, GitHub PRs/reviews, Jira JQL, Confluence edits).
-- Native (invocable via `skill` tool): `.devin/skills/jira-timesheet/SKILL.md`. Agent: `agents/timesheet-agent.md`. Governance skill: `.engineering/skills/jira-timesheet/skill.md`.
-- Uses the Atlassian MCP (`searchJiraIssuesUsingJql`, `addWorklogToJiraIssue`). Always confirms with the user before logging; never double-logs.
-
-## Environment-specific tooling
-
-Observability endpoints, cluster access and machine-specific binaries are personal
-configuration, not part of the framework. Keep them in the user-level rules file
-(`~/.config/devin/AGENTS.md`), never in this package — it is installed into other
-people's repositories.
+Build distributions from a clean checkout and inspect their contents before a
+release. A public package must not contain generated workspaces, run trails,
+credentials, internal hostnames or organization-specific configuration.

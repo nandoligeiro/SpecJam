@@ -22,7 +22,7 @@ specjam install
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.1.0' specjam --help
+uvx --from 'specjam==0.1.1' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -114,7 +114,7 @@ Skill = Routing + (Workflow + Semantics + Attachments)
 ## Development
 
 ```bash
-uv run --no-sync python -m unittest discover -s tests -v
+PYTHONPATH=src uv run --no-sync python -m unittest discover -s tests -v
 uv run specjam graph validate src/specjam/payload/workspace/graphs/delivery-graph.json
 uv build --no-sources
 ```
@@ -122,7 +122,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.1.0
+uv version 0.1.1
 uv build --no-sources
 uv publish
 ```
@@ -131,4 +131,8 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.1.0 adds the meta-harness foundation: increment-scoped session management, harness adapter contracts, external versioned skills, and a stronger Postmortem loop. Organization-specific credentials, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+Version 0.1.1 adds the public-release baseline: a vendor-neutral tracker contract, a sanitized packaged bridge and Apache-2.0 licensing. Organization-specific credentials, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).

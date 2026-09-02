@@ -3,7 +3,7 @@
 SpecJam governs engineering work while remaining independent from the harness that executes it.
 
 ```text
-Jira / human intent
+Tracker / human intent
         |
         v
 SpecJam flow + increment planner

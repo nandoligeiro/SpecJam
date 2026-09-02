@@ -166,9 +166,9 @@ The workspace is consolidated under a single directory, with only the minimum le
 
 ### 10\.3 Discovery flow
 
-Discovery is the local developer workspace flow for turning an Epic into mapped Stories and Features\. Jira is the shared source of truth; local `.discovery/` and `projects/` folders are optional working copies\.
+Discovery is the local developer workspace flow for turning an initiative into mapped Stories and Features\. A configured issue tracker may serve as the shared source of truth; local `.discovery/` and `projects/` folders are optional working copies\.
 
-1. `epic` creates or updates `01-epic.md` and represents the work as a Jira Epic\. A domain reviewer may inspect the Epic context in read-only mode\.
+1. `epic` creates or updates `01-epic.md` and represents the initiative in the configured tracker\. A domain reviewer may inspect the Epic context in read-only mode\.
 2. `stories` creates or updates `02-stories.md` and defines the Discovery Stories\.
 3. `mapping` creates or updates `03-mapping.md` and maps Stories to Delivery Features\.
 4. The run reaches `done` only when the mapping artifact exists and the transition is recorded\.
@@ -192,7 +192,7 @@ The SDD stage names and artifacts are the Delivery nodes `spec`/`02-spec.md`, op
 
 ### 10\.6 Postmortem flow
 
-Postmortem is the local developer workspace flow for learning after an incident or materially failed delivery\. Jira remains the shared source of truth\.
+Postmortem is the local developer workspace flow for learning after an incident or materially failed delivery\. The configured tracker may remain the shared source of truth\.
 
 1. `triage` creates or updates `01-triage.md`; until it exists, the root cause is not complete\.
 2. `root-cause` creates or updates `02-root-cause.md` and may dispatch observability and architecture subagents as read-only reviewers\.

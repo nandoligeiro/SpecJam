@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-09-02
+
+- Generalized the shared-system-of-record contract so the core no longer embeds a Jira taxonomy.
+- Removed workspace-specific paths, timesheet operations and model routing from the packaged bridge.
+- Added a public-surface regression test for packaged instructions and skills.
+- Adopted the Apache License 2.0 for the project and bundled skills.
+
 ## 0.1.0 — 2026-09-02
 
 - Evolved SpecJam from flow workspace to harness-neutral engineering meta-harness.

@@ -1,7 +1,7 @@
 ---
 name: specjam-bounded-review
 description: Run independent domain, architecture, security, observability, or test reviews as read-only analysis and preserve every result for one synthesis writer. Use before changing a shared engineering artifact.
-license: Proprietary
+license: Apache-2.0
 metadata:
   specjam_version: "0.0.1"
   contract: RWSA

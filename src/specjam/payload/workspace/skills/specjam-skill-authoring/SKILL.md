@@ -1,7 +1,7 @@
 ---
 name: specjam-skill-authoring
 description: Create or evaluate a reusable agent skill as a validated RWSA contract with routing triggers, workflow steps, semantics, attachments, verification, and rollback. Use when authoring a new SKILL.md or reviewing an existing skill for executability.
-license: Proprietary
+license: Apache-2.0
 metadata:
   specjam_version: "0.0.1"
   contract: RWSA

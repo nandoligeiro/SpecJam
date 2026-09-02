@@ -1,7 +1,7 @@
 ---
 name: specjam-trace-to-skill
 description: Convert demonstrations, agent trajectories, tool traces, and execution logs into an evidence-grounded RWSA skill while preserving branches, verification, approval, rollback, and state behavior. Use when distilling a repeated workflow into reusable agent instructions.
-license: Proprietary
+license: Apache-2.0
 metadata:
   specjam_version: "0.0.1"
   contract: RWSA
