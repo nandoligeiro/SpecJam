@@ -45,6 +45,8 @@ class GraphNode:
     blocking_reason: str | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
     subagents: tuple[Subagent, ...] = ()
+    session_policy: Mapping[str, Any] = field(default_factory=dict)
+    skills: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "GraphNode":
@@ -74,6 +76,11 @@ class GraphNode:
             blocking_reason=value.get("blocking_reason"),
             metadata=value.get("metadata", {}),
             subagents=subagents,
+            session_policy=value.get("session_policy", {}),
+            skills=tuple(
+                item if isinstance(item, str) else str(item["ref"])
+                for item in value.get("skills", ())
+            ),
         )
 
 

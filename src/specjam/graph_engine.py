@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .model import FlowGraph, GraphNode, RouteDecision, RouteState
+from .sessions import SessionPolicy
+from .skills import SkillReference
 
 
 class GraphValidationError(ValueError):
@@ -44,6 +46,17 @@ def validate_graph(graph: FlowGraph) -> None:
             errors.append(f"node {node.id!r} declares a subagent without read_only=true")
         if node.writer and node.writer in node.reviewers:
             errors.append(f"node {node.id!r} cannot use a reviewer as its synthesis writer")
+        try:
+            policy = SessionPolicy.from_dict(node.session_policy)
+            if policy.max_retries < 0:
+                errors.append(f"node {node.id!r} declares a negative max_retries")
+        except (TypeError, ValueError) as exc:
+            errors.append(f"node {node.id!r} has an invalid session_policy: {exc}")
+        for skill in node.skills:
+            try:
+                SkillReference.parse(skill)
+            except ValueError as exc:
+                errors.append(f"node {node.id!r} has an invalid skill reference {skill!r}: {exc}")
         conditions: set[str | None] = set()
         for edge in node.transitions:
             if edge.to not in graph.nodes:

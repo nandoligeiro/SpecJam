@@ -1,8 +1,21 @@
 {
   "schema": 1,
-  "specjam_version": "0.0.1",
+  "specjam_version": "0.1.0",
   "default_graph": "delivery",
   "trail_directory": "runs",
   "aggregation": "opt-in",
-  "runtime_discovery": ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "COPILOT.md"]
+  "runtime_discovery": ["AGENTS.md", "CLAUDE.md", "GEMINI.md", "COPILOT.md"],
+  "meta_harness": {
+    "default_harness": "default",
+    "session_strategy": "new_per_increment",
+    "max_retries": 2
+  },
+  "skill_providers": {
+    "workspace": {"type": "filesystem", "path": "skills"},
+    "ligeiro-mindware": {
+      "type": "git",
+      "repository": "https://github.com/nandoligeiro/ligeiro-mindware",
+      "path": "skills"
+    }
+  }
 }

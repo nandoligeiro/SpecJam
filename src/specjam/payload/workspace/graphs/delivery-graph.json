@@ -39,6 +39,8 @@
     "build": {
       "agent": "implementation-agent",
       "required_artifacts": ["04-build.md"],
+      "session_policy": {"strategy": "new_per_increment", "harness": "default", "max_retries": 2},
+      "skills": ["ligeiro-mindware/learning-domain-driven-design@latest"],
       "next": "validate",
       "implementation_blocked": false,
       "blocking_reason": ""
@@ -46,6 +48,7 @@
     "validate": {
       "agent": "validation-agent",
       "required_artifacts": ["05-validate.md"],
+      "session_policy": {"strategy": "isolated", "harness": "default", "read_only": true, "max_retries": 1},
       "next": "done",
       "implementation_blocked": false,
       "blocking_reason": ""

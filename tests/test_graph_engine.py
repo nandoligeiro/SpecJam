@@ -61,10 +61,17 @@ class GraphEngineTests(unittest.TestCase):
 
     def test_postmortem_requires_root_cause_before_actions(self):
         postmortem = load_graph(GRAPH_DIR / "postmortem-graph.json")
-        causes = route(postmortem, RouteState("root-cause", frozenset({"02-root-cause.md"})))
+        causes = route(postmortem, RouteState("root-cause", frozenset({"05-hypotheses.md", "06-root-cause.md"})))
         self.assertTrue(causes.may_advance)
         self.assertEqual(causes.next_stage, "actions")
         self.assertEqual(causes.reviewers, ("observability", "architecture"))
+
+    def test_postmortem_has_evidence_and_exclusive_synthesis(self):
+        graph = load_graph(GRAPH_DIR / "postmortem-graph.json")
+        self.assertEqual(graph.nodes["triage"].transitions[0].to, "evidence")
+        self.assertEqual(graph.nodes["evidence"].session_policy["strategy"], "parallel")
+        self.assertEqual(graph.nodes["synthesis"].session_policy["strategy"], "exclusive")
+        self.assertEqual(graph.nodes["synthesis"].writer, "postmortem-synthesis-agent")
 
     def test_every_graph_validates(self):
         for path in GRAPH_DIR.glob("*.json"):

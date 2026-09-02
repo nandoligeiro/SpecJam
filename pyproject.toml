@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specjam"
-version = "0.0.1"
-description = "A harness-neutral agentic engineering workspace built around flow graphs and RWSA skills."
+version = "0.1.0"
+description = "A harness-neutral engineering meta-harness built around flow graphs, incremental sessions and versioned skills."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Fernando Costa" }]

@@ -1,37 +1,66 @@
 {
   "graph": "postmortem",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "start": "triage",
   "terminal": "done",
   "nodes": {
     "triage": {
       "agent": "triage-agent",
-      "required_artifacts": ["01-triage.md"],
+      "required_artifacts": ["01-triage.md", "02-impact.md"],
+      "session_policy": {"strategy": "new", "harness": "default", "read_only": true, "max_retries": 1},
+      "skills": ["ligeiro-mindware/observability-engineering@latest"],
+      "next": "evidence",
+      "implementation_blocked": true,
+      "blocking_reason": "Incident scope and impact are not established"
+    },
+    "evidence": {
+      "agent": "evidence-agent",
+      "required_artifacts": ["03-timeline.md", "04-evidence-index.md"],
+      "session_policy": {"strategy": "parallel", "harness": "default", "read_only": true, "max_retries": 2},
+      "skills": ["ligeiro-mindware/observability-engineering@latest"],
+      "subagents": [
+        {"role": "observability", "agent": "specjam-observability-reviewer", "read_only": true},
+        {"role": "deployment", "agent": "specjam-deployment-reviewer", "read_only": true}
+      ],
       "next": "root-cause",
       "implementation_blocked": true,
-      "blocking_reason": "Root cause is not complete"
+      "blocking_reason": "Evidence and timeline are incomplete"
     },
     "root-cause": {
       "agent": "root-cause-agent",
-      "required_artifacts": ["02-root-cause.md"],
+      "required_artifacts": ["05-hypotheses.md", "06-root-cause.md"],
+      "session_policy": {"strategy": "isolated", "harness": "default", "read_only": true, "max_retries": 2},
+      "skills": ["ligeiro-mindware/observability-engineering@latest"],
       "subagents": [
         {"role": "observability", "agent": "specjam-observability-reviewer", "read_only": true},
         {"role": "architecture", "agent": "specjam-architecture-reviewer", "read_only": true}
       ],
       "next": "actions",
       "implementation_blocked": true,
-      "blocking_reason": "Action items are not defined"
+      "blocking_reason": "Root cause is not supported by evidence"
     },
     "actions": {
       "agent": "actions-agent",
-      "required_artifacts": ["03-actions.md"],
+      "required_artifacts": ["07-corrective-actions.md"],
+      "session_policy": {"strategy": "new_per_increment", "harness": "default", "max_retries": 2},
+      "skills": ["ligeiro-mindware/observability-engineering@latest"],
+      "next": "synthesis",
+      "implementation_blocked": false,
+      "blocking_reason": ""
+    },
+    "synthesis": {
+      "agent": "postmortem-synthesis-agent",
+      "required_artifacts": ["08-postmortem.md"],
+      "session_policy": {"strategy": "exclusive", "harness": "default", "max_retries": 1},
+      "writer": "postmortem-synthesis-agent",
       "next": "follow-up",
       "implementation_blocked": false,
       "blocking_reason": ""
     },
     "follow-up": {
       "agent": "pm-follow-up-agent",
-      "required_artifacts": ["04-follow-up.md"],
+      "required_artifacts": ["09-follow-up.md"],
+      "session_policy": {"strategy": "new_per_increment", "harness": "default", "max_retries": 2},
       "next": "done",
       "implementation_blocked": false,
       "blocking_reason": ""
@@ -39,6 +68,7 @@
     "done": {
       "agent": "none",
       "required_artifacts": [],
+      "session_policy": {"strategy": "reuse", "harness": "default"},
       "next": "done",
       "implementation_blocked": false,
       "blocking_reason": ""
