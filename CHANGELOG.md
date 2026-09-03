@@ -9,6 +9,10 @@
 - Added `specjam memory init`, `add`, and `search` commands.
 - Added labelled offline calibration for `top_k` and `min_score`, including negative cases where abstention is correct.
 - Added `specjam memory calibrate` with precision, recall, reciprocal-rank, abstention, and context-cost metrics.
+- Added the governed experience-to-memory learning loop with explicit evaluation and reflection contracts.
+- Added a validated session lifecycle from execution through evaluation, learning, and closure.
+- Added append-only lifecycle events with evidence and promoted-memory provenance.
+- Restricted semantic-memory promotion to high-confidence, evidenced Postmortem learning by default.
 - Documented the rebuildable-projection boundary and research basis for hybrid memory.
 
 ## 0.1.1 — 2026-09-02
