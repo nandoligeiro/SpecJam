@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — 2026-09-03
+
+- Added a typed, provenance-aware SQLite memory store using float32 vector BLOBs.
+- Added exact cosine, optional FTS5 lexical recall, and graph/stage/role/run/kind filters.
+- Added selective memory injection into implementation sessions while keeping reviewers independent.
+- Added a vendor-neutral `EmbeddingProvider` contract and memory policy.
+- Added `specjam memory init`, `add`, and `search` commands.
+- Documented the rebuildable-projection boundary and research basis for hybrid memory.
+
 ## 0.1.1 — 2026-09-02
 
 - Generalized the shared-system-of-record contract so the core no longer embeds a Jira taxonomy.

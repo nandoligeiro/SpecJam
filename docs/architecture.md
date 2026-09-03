@@ -10,9 +10,14 @@ Graph + RouteState ──> route() ──> RouteDecision
 
 GraphNode.subagents ──> ReviewRequest[] ──> ReviewResult[]
                                       └──> one SynthesisPlan
+
+Trail + accepted artifacts ──> SQLite memory projection
+Objective + structural scope ──> selective recall ──> implementation context
 ```
 
 `route()` validates and evaluates data. It does not read or write files, invoke a model, call a tool, or mutate state. `record_route()` is the explicit persistence boundary.
+
+Vector memory does not alter this pure routing boundary. Recall happens in `MetaHarnessRuntime` while planning an execution session, and the embedding provider remains an injected adapter.
 
 ## Graph model
 

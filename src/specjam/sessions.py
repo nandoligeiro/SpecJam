@@ -54,6 +54,17 @@ class SessionPolicy:
 
 
 @dataclass(frozen=True)
+class SessionContextItem:
+    """A bounded, cited context item delivered to one execution session."""
+
+    kind: str
+    content: str
+    source_ref: str
+    score: float
+    metadata: Mapping[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class SessionRequest:
     run_id: str
     increment_id: str
@@ -64,6 +75,7 @@ class SessionRequest:
     skills: tuple[str, ...] = ()
     input_artifacts: tuple[str, ...] = ()
     metadata: Mapping[str, object] = field(default_factory=dict)
+    context_items: tuple[SessionContextItem, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,7 @@ build/
 .mypy_cache/
 .coverage
 .specjam/
+.specjam/memory/
 .discovery/
 projects/
 daily/

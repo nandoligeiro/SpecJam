@@ -2,6 +2,7 @@
 .specjam/state/
 .specjam/runs/
 .specjam/daily/
+.specjam/memory/
 .discovery/
 projects/
 daily/

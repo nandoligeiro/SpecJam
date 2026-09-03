@@ -8,6 +8,7 @@ The first release combines three ideas:
 - **RWSA skills**: Routing, Workflow, Semantics, and Attachments as an executable contract for reusable agent capabilities.
 - **A local workspace**: a standard-library-only CLI that installs, verifies, inspects, updates, and scaffolds the method in any repository.
 - **A meta-harness runtime**: increment-scoped sessions, harness adapters, versioned skill resolution, independent reviewer sessions, and auditable execution plans.
+- **Governed memory**: typed SQLite records, vector and lexical recall, structured scope, and mandatory provenance.
 
 ## Quick start
 
@@ -22,7 +23,7 @@ specjam install
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.1.1' specjam --help
+uvx --from 'specjam==0.2.0' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -33,6 +34,7 @@ uv run specjam verify
 uv run specjam inspect
 uv run specjam classify "Add a new payment capability"
 uv run specjam flow scaffold --flow delivery --slug payment-capability
+uv run specjam memory init --db .specjam/memory/specjam.db --dimensions 3
 ```
 
 The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existing bridge files are preserved unless `--force` is supplied. Runtime state is ignored; the lockfile and managed definitions remain inspectable.
@@ -93,6 +95,12 @@ The core exposes an `ExecutionHarness` protocol rather than depending on Devin, 
 
 Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`, `parallel`, and `exclusive`.
 
+## Selective SQLite vector memory
+
+SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines exact cosine search, SQLite FTS5 when available, and graph/stage/role filters. Reviewer sessions remain unprimed by default.
+
+The database is a rebuildable projection; accepted artifacts and append-only trails remain the source of truth. Embedding providers are adapters, so the dependency-free core sends no data to a model vendor. See [SQLite vector memory](docs/vector-memory.md) for the lifecycle, CLI, integration contract, and research basis.
+
 ## Versioned skill providers
 
 Graph nodes may invoke workspace or external skills through `provider/name@version` references. `SkillResolver` records the resolved version and a SHA-256 content hash, so a run can explain exactly which capability was loaded. The default workspace configuration includes a provider contract for [Ligeiro Mindware](https://github.com/nandoligeiro/ligeiro-mindware); network and Git access remain adapter concerns outside the dependency-free core.
@@ -122,7 +130,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.1.1
+uv version 0.2.0
 uv build --no-sources
 uv publish
 ```
@@ -131,7 +139,7 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.1.1 adds the public-release baseline: a vendor-neutral tracker contract, a sanitized packaged bridge and Apache-2.0 licensing. Organization-specific credentials, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+Version 0.2.0 adds governed SQLite vector memory with hybrid recall, typed provenance, and selective delivery to implementation sessions. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
 
 ## License
 

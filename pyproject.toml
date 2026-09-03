@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "specjam"
-version = "0.1.1"
+version = "0.2.0"
 description = "A harness-neutral engineering meta-harness built around flow graphs, incremental sessions and versioned skills."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Fernando Costa" }]
 license = "Apache-2.0"
-keywords = ["agents", "engineering-workflow", "flow-graphs", "rws", "cli"]
+keywords = ["agents", "engineering-workflow", "flow-graphs", "rws", "sqlite", "vector-memory", "cli"]
 dependencies = []
 
 [project.urls]
