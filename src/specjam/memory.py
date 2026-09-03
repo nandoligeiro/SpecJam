@@ -17,6 +17,8 @@ import sqlite3
 import struct
 from typing import Iterable, Mapping, Protocol, Sequence
 
+from .vector_index import ExactVectorIndex, VectorIndex, create_vector_index
+
 
 class MemoryKind(str, Enum):
     REQUIREMENT = "requirement"
@@ -133,11 +135,14 @@ class SQLiteVectorMemory:
     without changing the public memory contract.
     """
 
-    def __init__(self, path: str | Path, dimensions: int):
+    def __init__(self, path: str | Path, dimensions: int, *, vector_backend: str = "auto"):
         if dimensions < 1:
             raise ValueError("dimensions must be positive")
         self.path = Path(path)
         self.dimensions = dimensions
+        self.requested_vector_backend = vector_backend
+        self.vector_index: VectorIndex = create_vector_index(vector_backend)
+        self.vector_backend = self.vector_index.name
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
@@ -146,6 +151,14 @@ class SQLiteVectorMemory:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA busy_timeout = 5000")
+        try:
+            self.vector_index.prepare_connection(connection)
+        except (AttributeError, OSError, RuntimeError, sqlite3.Error):
+            if self.requested_vector_backend != "auto":
+                connection.close()
+                raise
+            self.vector_index = ExactVectorIndex()
+            self.vector_backend = self.vector_index.name
         return connection
 
     def _initialize(self) -> None:
@@ -179,8 +192,13 @@ class SQLiteVectorMemory:
             existing = connection.execute("SELECT value FROM memory_meta WHERE key = 'dimensions'").fetchone()
             if existing is not None and int(existing["value"]) != self.dimensions:
                 raise ValueError(f"database dimensions are {existing['value']}, requested {self.dimensions}")
-            connection.execute("INSERT OR IGNORE INTO memory_meta(key, value) VALUES ('schema_version', '1')")
+            connection.execute("INSERT OR REPLACE INTO memory_meta(key, value) VALUES ('schema_version', '2')")
             connection.execute("INSERT OR IGNORE INTO memory_meta(key, value) VALUES ('dimensions', ?)", (str(self.dimensions),))
+            self.vector_index.initialize(connection, self.dimensions)
+            connection.execute(
+                "INSERT OR REPLACE INTO memory_meta(key, value) VALUES ('vector_backend', ?)",
+                (self.vector_backend,),
+            )
             try:
                 connection.execute("CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(id UNINDEXED, content)")
                 connection.execute("INSERT OR IGNORE INTO memory_meta(key, value) VALUES ('fts5', 'enabled')")
@@ -208,6 +226,8 @@ class SQLiteVectorMemory:
                     raise ValueError(f"memory id collision: {record.id}")
             if inserted and self._fts_enabled(connection):
                 connection.execute("INSERT INTO memory_fts(id, content) VALUES (?, ?)", (record.id, record.content))
+            if inserted:
+                self.vector_index.add(connection, record.id, _pack(vector))
             return inserted
 
     def add_all(self, records: Iterable[MemoryRecord]) -> int:
@@ -244,12 +264,24 @@ class SQLiteVectorMemory:
         with self._connect() as connection:
             rows = connection.execute(sql, values).fetchall()
             lexical = self._lexical_ranks(connection, query.text) if query.text else {}
+            native_count = (
+                int(connection.execute("SELECT COUNT(*) FROM memory_vec").fetchone()[0])
+                if self.vector_backend == "sqlite-vec"
+                else 0
+            )
+            native_scores = self.vector_index.scores(connection, _pack(target), native_count)
 
         candidates: list[tuple[MemoryRecord, float]] = []
         for row in rows:
             record = _record_from_row(row)
-            cosine = _cosine(target, record.embedding)
-            candidates.append((record, (cosine + 1.0) / 2.0))
+            if not isinstance(self.vector_index, ExactVectorIndex):
+                if record.id not in native_scores:
+                    continue
+                vector_score = native_scores[record.id]
+            else:
+                cosine = _cosine(target, record.embedding)
+                vector_score = (cosine + 1.0) / 2.0
+            candidates.append((record, vector_score))
         candidates.sort(key=lambda item: (-item[1], item[0].id))
 
         hybrid = bool(query.text and lexical)
@@ -265,6 +297,31 @@ class SQLiteVectorMemory:
                 matches.append(MemoryMatch(record, min(score, 1.0), vector_score, lexical_rank))
         matches.sort(key=lambda item: (-item.score, -item.vector_score, item.record.id))
         return tuple(matches[:query.top_k])
+
+    def metadata(self) -> dict[str, str]:
+        with self._connect() as connection:
+            return {str(row["key"]): str(row["value"]) for row in connection.execute("SELECT key, value FROM memory_meta")}
+
+    def configure_embedding(self, provider: str, model: str) -> None:
+        """Bind a non-empty projection to one embedding space."""
+
+        if not provider.strip() or not model.strip():
+            raise ValueError("embedding provider and model must not be empty")
+        with self._connect() as connection:
+            current = {str(row["key"]): str(row["value"]) for row in connection.execute(
+                "SELECT key, value FROM memory_meta WHERE key IN ('embedding_provider', 'embedding_model')"
+            )}
+            if current:
+                if current.get("embedding_provider") != provider or current.get("embedding_model") != model:
+                    raise ValueError(
+                        "database embedding profile differs from the configured provider/model; rebuild the projection"
+                    )
+                return
+            records = int(connection.execute("SELECT COUNT(*) FROM memory_records").fetchone()[0])
+            if records:
+                raise ValueError("existing unprofiled vectors cannot be adopted automatically; rebuild the projection")
+            connection.execute("INSERT INTO memory_meta(key, value) VALUES ('embedding_provider', ?)", (provider,))
+            connection.execute("INSERT INTO memory_meta(key, value) VALUES ('embedding_model', ?)", (model,))
 
     @staticmethod
     def _fts_enabled(connection: sqlite3.Connection) -> bool:

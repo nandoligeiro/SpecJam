@@ -13,6 +13,12 @@ license = "Apache-2.0"
 keywords = ["agents", "engineering-workflow", "flow-graphs", "rws", "sqlite", "vector-memory", "cli"]
 dependencies = []
 
+[project.optional-dependencies]
+local = [
+  "fastembed>=0.8,<0.9",
+  "sqlite-vec>=0.1.8,<0.2",
+]
+
 [project.urls]
 Homepage = "https://github.com/nandoligeiro/SpecJam"
 Repository = "https://github.com/nandoligeiro/SpecJam"

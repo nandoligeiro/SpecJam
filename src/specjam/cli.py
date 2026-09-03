@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .calibration import calibrate_memory, load_calibration_cases
 from .classification import classify_request
+from .embeddings import DEFAULT_LOCAL_MODEL, FastEmbedProvider
 from .graph_engine import load_graph, record_route
 from .installer import inspect_installation, install, scaffold_flow, update, verify
 from .memory import MemoryKind, MemoryQuery, MemoryRecord, SQLiteVectorMemory
@@ -37,6 +38,50 @@ def _embedding(value: str) -> tuple[float, ...]:
         return tuple(float(item) for item in parsed)
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         raise argparse.ArgumentTypeError("embedding must be a JSON array of numbers") from exc
+
+
+def _add_local_options(parser: argparse.ArgumentParser, *, embedding: bool = False) -> None:
+    parser.add_argument("--dimensions", type=int)
+    if embedding:
+        parser.add_argument("--embedding", type=_embedding)
+    parser.add_argument("--model", default=DEFAULT_LOCAL_MODEL)
+    parser.add_argument("--cache-dir")
+    parser.add_argument("--backend", choices=("auto", "exact", "sqlite-vec"), default="auto")
+
+
+def _provider(args, *, allow_download: bool = False) -> FastEmbedProvider:
+    return FastEmbedProvider(
+        args.model,
+        cache_dir=args.cache_dir,
+        local_files_only=not allow_download,
+    )
+
+
+def _vector(args, text: str) -> tuple[int, tuple[float, ...], FastEmbedProvider | None]:
+    if getattr(args, "embedding", None) is not None:
+        vector = tuple(args.embedding)
+        dimensions = args.dimensions or len(vector)
+        return dimensions, vector, None
+    provider = _provider(args)
+    if args.dimensions is not None and args.dimensions != provider.dimensions:
+        raise ValueError(
+            f"configured dimensions {args.dimensions} do not match model dimensions {provider.dimensions}"
+        )
+    return provider.dimensions, tuple(provider.embed(text)), provider
+
+
+def _configured_store(args, dimensions: int, provider: FastEmbedProvider | None = None) -> SQLiteVectorMemory:
+    store = SQLiteVectorMemory(args.db, dimensions, vector_backend=args.backend)
+    if provider is not None:
+        store.configure_embedding("fastembed", provider.model)
+    else:
+        metadata = store.metadata()
+        # Bind new CLI-created projections to their embedding space. Legacy
+        # unprofiled databases remain readable, but a profiled automatic store
+        # cannot be silently written or queried with an unrelated manual vector.
+        if store.count() == 0 or "embedding_provider" in metadata:
+            store.configure_embedding("manual", f"float32-{dimensions}")
+    return store
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -89,15 +134,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     memory = commands.add_parser("memory", help="manage the SQLite retrieval projection")
     memory_commands = memory.add_subparsers(dest="memory_command", required=True)
+    memory_prepare = memory_commands.add_parser("prepare", help="download and verify the local embedding model")
+    memory_prepare.add_argument("--model", default=DEFAULT_LOCAL_MODEL)
+    memory_prepare.add_argument("--cache-dir")
     memory_init = memory_commands.add_parser("init", help="initialize a typed vector store")
-    memory_init.add_argument("--db", required=True)
-    memory_init.add_argument("--dimensions", required=True, type=int)
+    memory_init.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_init)
     memory_add = memory_commands.add_parser("add", help="append one embedded memory")
-    memory_add.add_argument("--db", required=True)
-    memory_add.add_argument("--dimensions", required=True, type=int)
+    memory_add.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_add, embedding=True)
     memory_add.add_argument("--kind", required=True, choices=tuple(kind.value for kind in MemoryKind))
     memory_add.add_argument("--content", required=True)
-    memory_add.add_argument("--embedding", required=True, type=_embedding)
     memory_add.add_argument("--source-ref", required=True)
     memory_add.add_argument("--id")
     memory_add.add_argument("--run-id")
@@ -106,9 +153,8 @@ def build_parser() -> argparse.ArgumentParser:
     memory_add.add_argument("--stage")
     memory_add.add_argument("--role")
     memory_search = memory_commands.add_parser("search", help="run structured hybrid recall")
-    memory_search.add_argument("--db", required=True)
-    memory_search.add_argument("--dimensions", required=True, type=int)
-    memory_search.add_argument("--embedding", required=True, type=_embedding)
+    memory_search.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_search, embedding=True)
     memory_search.add_argument("--text")
     memory_search.add_argument("--top-k", type=int, default=3)
     memory_search.add_argument("--min-score", type=float, default=0.0)
@@ -120,8 +166,8 @@ def build_parser() -> argparse.ArgumentParser:
     memory_search.add_argument("--increment-id")
     memory_search.add_argument("--exclude-run-id")
     memory_calibrate = memory_commands.add_parser("calibrate", help="tune recall policy from labelled cases")
-    memory_calibrate.add_argument("--db", required=True)
-    memory_calibrate.add_argument("--dimensions", required=True, type=int)
+    memory_calibrate.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_calibrate)
     memory_calibrate.add_argument("--cases", required=True)
     memory_calibrate.add_argument("--top-k", action="append", type=int)
     memory_calibrate.add_argument("--min-score", action="append", type=float)
@@ -168,14 +214,31 @@ def main(argv: list[str] | None = None) -> int:
         path = scaffold_flow(args.target, args.flow, args.slug)
         _emit({"flow": args.flow, "path": str(path)})
         return 0
+    if args.command == "memory" and args.memory_command == "prepare":
+        provider = _provider(args, allow_download=True)
+        provider.prepare()
+        _emit({"provider": "fastembed", "model": provider.model, "dimensions": provider.dimensions, "ready": True})
+        return 0
     if args.command == "memory" and args.memory_command == "init":
-        store = SQLiteVectorMemory(args.db, args.dimensions)
-        _emit({"database": str(store.path), "dimensions": store.dimensions, "records": store.count()})
+        if args.dimensions is not None:
+            dimensions, provider = args.dimensions, None
+        else:
+            provider = _provider(args)
+            dimensions = provider.dimensions
+        store = _configured_store(args, dimensions, provider)
+        metadata = store.metadata()
+        _emit({
+            "database": str(store.path), "dimensions": store.dimensions, "records": store.count(),
+            "vector_backend": store.vector_backend,
+            "embedding_provider": metadata.get("embedding_provider"),
+            "embedding_model": metadata.get("embedding_model"),
+        })
         return 0
     if args.command == "memory" and args.memory_command == "add":
-        store = SQLiteVectorMemory(args.db, args.dimensions)
+        dimensions, embedding, provider = _vector(args, args.content)
+        store = _configured_store(args, dimensions, provider)
         record = MemoryRecord.create(
-            id=args.id, kind=args.kind, content=args.content, embedding=args.embedding,
+            id=args.id, kind=args.kind, content=args.content, embedding=embedding,
             source_ref=args.source_ref, run_id=args.run_id, increment_id=args.increment_id,
             graph_id=args.graph_id, stage=args.stage, role=args.role,
         )
@@ -183,9 +246,13 @@ def main(argv: list[str] | None = None) -> int:
         _emit({"id": record.id, "inserted": inserted, "records": store.count()})
         return 0
     if args.command == "memory" and args.memory_command == "search":
-        store = SQLiteVectorMemory(args.db, args.dimensions)
+        text = args.text or ""
+        if not text and args.embedding is None:
+            raise ValueError("search requires --text when --embedding is omitted")
+        dimensions, embedding, provider = _vector(args, text)
+        store = _configured_store(args, dimensions, provider)
         matches = store.search(MemoryQuery(
-            embedding=args.embedding, text=args.text, top_k=args.top_k, min_score=args.min_score,
+            embedding=embedding, text=args.text, top_k=args.top_k, min_score=args.min_score,
             kinds=tuple(MemoryKind(kind) for kind in args.kind), graph_id=args.graph_id,
             stage=args.stage, role=args.role, run_id=args.run_id, increment_id=args.increment_id,
             exclude_run_id=args.exclude_run_id,
@@ -201,7 +268,12 @@ def main(argv: list[str] | None = None) -> int:
         } for match in matches]})
         return 0
     if args.command == "memory" and args.memory_command == "calibrate":
-        store = SQLiteVectorMemory(args.db, args.dimensions)
+        if args.dimensions is not None:
+            dimensions, provider = args.dimensions, None
+        else:
+            provider = _provider(args)
+            dimensions = provider.dimensions
+        store = _configured_store(args, dimensions, provider)
         options = {}
         if args.top_k:
             options["top_k_values"] = tuple(args.top_k)

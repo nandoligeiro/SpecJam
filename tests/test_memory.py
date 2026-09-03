@@ -1,8 +1,10 @@
 import contextlib
 import io
 import json
+import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from specjam.memory import MemoryKind, MemoryQuery, MemoryRecord, SQLiteVectorMemory
@@ -69,6 +71,19 @@ class SQLiteVectorMemoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "database dimensions are 3"):
             SQLiteVectorMemory(self.path, dimensions=2)
 
+    def test_auto_backend_falls_back_when_extension_cannot_load(self):
+        class BrokenVectorIndex:
+            name = "sqlite-vec"
+
+            def prepare_connection(self, connection):
+                raise sqlite3.OperationalError("extension loading disabled")
+
+        fallback = Path(self.temporary.name) / "fallback.db"
+        with patch("specjam.memory.create_vector_index", return_value=BrokenVectorIndex()):
+            store = SQLiteVectorMemory(fallback, dimensions=3, vector_backend="auto")
+        self.assertEqual(store.vector_backend, "exact")
+        self.assertEqual(store.metadata()["vector_backend"], "exact")
+
     def test_cli_round_trip(self):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["memory", "init", "--db", str(self.path), "--dimensions", "3"]), 0)
@@ -84,6 +99,63 @@ class SQLiteVectorMemoryTests(unittest.TestCase):
                 "--embedding", "[1, 0, 0]", "--text", "retry", "--top-k", "1",
             ]), 0)
         self.assertEqual(json.loads(output.getvalue())["matches"][0]["id"], "cli-record")
+
+    def test_cli_generates_embeddings_and_dimensions_automatically(self):
+        class FakeProvider:
+            dimensions = 3
+            model = "test/multilingual"
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def embed(self, text):
+                return (1, 0, 0)
+
+        automatic = Path(self.temporary.name) / "automatic.db"
+        with patch("specjam.cli.FastEmbedProvider", FakeProvider):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main([
+                    "memory", "init", "--db", str(automatic), "--backend", "exact",
+                ]), 0)
+                self.assertEqual(main([
+                    "memory", "add", "--db", str(automatic), "--backend", "exact",
+                    "--kind", "procedure", "--content", "Validate contract",
+                    "--source-ref", "trail://auto/1",
+                ]), 0)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main([
+                    "memory", "search", "--db", str(automatic), "--backend", "exact",
+                    "--text", "contract", "--top-k", "1",
+                ]), 0)
+        self.assertEqual(json.loads(output.getvalue())["matches"][0]["content"], "Validate contract")
+        metadata = SQLiteVectorMemory(automatic, 3, vector_backend="exact").metadata()
+        self.assertEqual(metadata["embedding_provider"], "fastembed")
+        self.assertEqual(metadata["embedding_model"], "test/multilingual")
+
+    def test_cli_rejects_manual_vectors_for_automatic_projection(self):
+        class FakeProvider:
+            dimensions = 3
+            model = "test/multilingual"
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def embed(self, text):
+                return (1, 0, 0)
+
+        automatic = Path(self.temporary.name) / "profiled.db"
+        with patch("specjam.cli.FastEmbedProvider", FakeProvider):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(main([
+                    "memory", "init", "--db", str(automatic), "--backend", "exact",
+                ]), 0)
+        with self.assertRaisesRegex(ValueError, "embedding profile differs"):
+            main([
+                "memory", "add", "--db", str(automatic), "--backend", "exact",
+                "--embedding", "[1, 0, 0]", "--kind", "procedure",
+                "--content", "Unsafe mixed space", "--source-ref", "trail://manual/1",
+            ])
 
 
 if __name__ == "__main__":

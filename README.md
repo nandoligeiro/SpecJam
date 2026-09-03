@@ -39,6 +39,20 @@ uv run specjam memory init --db .specjam/memory/specjam.db --dimensions 3
 uv run specjam memory calibrate --db .specjam/memory/specjam.db --dimensions 3 --cases examples/memory-calibration.json
 ```
 
+For automatic, fully local embeddings and `sqlite-vec` acceleration:
+
+```bash
+uv tool install 'specjam[local]'
+specjam memory prepare
+specjam memory init
+specjam memory add --kind procedure --content "Validate contracts before migration" \
+  --source-ref trail://delivery-42/inc-4
+specjam memory search --text "How should I migrate this API?"
+```
+
+`memory prepare` is the only step allowed to download the ONNX model. Normal
+indexing and retrieval use cached model files and do not access the network.
+
 The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existing bridge files are preserved unless `--force` is supplied. Runtime state is ignored; the lockfile and managed definitions remain inspectable.
 
 ## Architecture
@@ -99,7 +113,7 @@ Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`
 
 ## Selective SQLite vector memory
 
-SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines exact cosine search, SQLite FTS5 when available, and graph/stage/role filters. Reviewer sessions remain unprimed by default.
+SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines SQLite FTS5, `sqlite-vec` cosine KNN when the local extra is installed, and graph/stage/role filters. A portable exact-cosine backend remains available as fallback. Reviewer sessions remain unprimed by default.
 
 The database is a rebuildable projection; accepted artifacts and append-only trails remain the source of truth. Embedding providers are adapters, so the dependency-free core sends no data to a model vendor. See [SQLite vector memory](docs/vector-memory.md) for the lifecycle, CLI, integration contract, and research basis.
 

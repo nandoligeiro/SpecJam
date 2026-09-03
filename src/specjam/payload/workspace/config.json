@@ -11,8 +11,15 @@
     "max_retries": 2
   },
   "memory": {
-    "backend": "sqlite",
+    "backend": "auto",
+    "vector_backends": ["sqlite-vec", "exact"],
     "path": "memory/specjam.db",
+    "embedding": {
+      "provider": "fastembed",
+      "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "dimensions": "auto",
+      "network_during_execution": false
+    },
     "retrieval": "hybrid",
     "intervention": "selective",
     "top_k": 3,

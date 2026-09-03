@@ -35,9 +35,33 @@ bounded session context
 
 Write policy defaults to `accepted_evidence_only`: never learn automatically from an unvalidated model assertion. Failures and recovery procedures should be committed after evaluation, with a reference to the supporting trail or artifact.
 
+## Offline automatic profile
+
+Install the optional local profile once:
+
+```bash
+uv tool install 'specjam[local]'
+specjam memory prepare
+```
+
+The default model is `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+through FastEmbed/ONNX. Its 384 dimensions are discovered from the model
+manifest, so normal commands do not require `--dimensions` or a precomputed
+`--embedding`. `memory prepare` may download model assets; every other command
+sets `local_files_only` and fails explicitly if the cache is unavailable.
+
+The default vector backend is `auto`: use `sqlite-vec` when installed and fall
+back to exact Python cosine otherwise. `VectorIndex` isolates extension-specific
+SQL so a future ANN implementation does not change the memory contract. FTS5
+continues to provide lexical recall in either mode.
+
+The database binds itself to an embedding provider and model before accepting
+automatically generated vectors. Switching embedding spaces requires rebuilding
+the projection; vectors from different models are never mixed silently.
+
 ## Portable baseline
 
-The core uses only Python's standard `sqlite3` module and performs exact cosine search. That is suitable for project-scoped memory, keeps installation portable, and makes results easy to test. The embedding BLOB schema and `MemoryStore` contract leave room for an optional ANN adapter based on SQLite Vec1 or `sqlite-vec` when a corpus justifies the native extension and its operational cost.
+The core uses only Python's standard `sqlite3` module and can perform exact cosine search. That is suitable for restricted environments and keeps the base installation dependency-free. Manual `--dimensions` and `--embedding` inputs remain available for debugging and external providers.
 
 The vector is never the identity or evidence. Record identity is stable, semantic type and structured scope stay explicit, and the source reference allows the harness to verify the original evidence.
 
@@ -61,7 +85,20 @@ An embedding adapter is injected into `MetaHarnessRuntime`; SpecJam does not cho
 
 ## CLI
 
-The CLI accepts precomputed vectors, keeping model access outside the core:
+The CLI generates vectors automatically in the local profile:
+
+```bash
+specjam memory init
+
+specjam memory add \
+  --kind recovery --content "Run contract tests before retry" \
+  --source-ref trail://delivery-42/inc-4 --graph-id delivery
+
+specjam memory search \
+  --text "retry contract tests" --graph-id delivery --top-k 3
+```
+
+Precomputed vectors remain supported:
 
 ```bash
 specjam memory init --db .specjam/memory/specjam.db --dimensions 3

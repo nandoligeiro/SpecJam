@@ -13,6 +13,10 @@
 - Added a validated session lifecycle from execution through evaluation, learning, and closure.
 - Added append-only lifecycle events with evidence and promoted-memory provenance.
 - Restricted semantic-memory promotion to high-confidence, evidenced Postmortem learning by default.
+- Added offline multilingual ONNX embeddings with automatic 384-dimension discovery.
+- Added `sqlite-vec` cosine retrieval behind a stable vector-index boundary and exact fallback.
+- Added `memory prepare` so model download is explicit and normal execution stays offline.
+- Made memory init, add, and search automatic while preserving manual vectors for debugging.
 - Documented the rebuildable-projection boundary and research basis for hybrid memory.
 
 ## 0.1.1 — 2026-09-02
