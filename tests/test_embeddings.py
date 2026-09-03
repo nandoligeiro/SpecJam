@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from unittest.mock import patch
 
 from specjam.embeddings import FastEmbedProvider, LocalEmbeddingUnavailable
@@ -39,6 +40,23 @@ class FastEmbedProviderTests(unittest.TestCase):
             provider = FastEmbedProvider("test/multilingual")
             with self.assertRaisesRegex(LocalEmbeddingUnavailable, "memory prepare"):
                 provider.embed("test")
+
+    def test_suppresses_only_the_known_pooling_compatibility_warning(self):
+        class NoisyTextEmbedding(FakeTextEmbedding):
+            def __init__(self, **options):
+                warnings.warn(
+                    "The model test/multilingual now uses mean pooling instead of CLS embedding.",
+                    UserWarning,
+                )
+                warnings.warn("provider diagnostic", RuntimeWarning)
+                super().__init__(**options)
+
+        with patch.object(FastEmbedProvider, "_text_embedding_type", return_value=NoisyTextEmbedding):
+            provider = FastEmbedProvider("test/multilingual")
+            with warnings.catch_warnings(record=True) as captured:
+                warnings.simplefilter("always")
+                provider.embed("test")
+        self.assertEqual([str(item.message) for item in captured], ["provider diagnostic"])
 
 
 if __name__ == "__main__":

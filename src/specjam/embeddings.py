@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Sequence
 
@@ -64,12 +65,21 @@ class FastEmbedProvider:
             return self._engine
         TextEmbedding = self._text_embedding_type()
         try:
-            self._engine = TextEmbedding(
-                model_name=self.model,
-                cache_dir=self.cache_dir,
-                local_files_only=self.local_files_only,
-                lazy_load=True,
-            )
+            with warnings.catch_warnings():
+                # SpecJam's profile is new and intentionally uses FastEmbed's
+                # current mean-pooling contract; there is no legacy CLS index
+                # to preserve. Keep every unrelated provider warning visible.
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"The model .* now uses mean pooling instead of CLS embedding.*",
+                    category=UserWarning,
+                )
+                self._engine = TextEmbedding(
+                    model_name=self.model,
+                    cache_dir=self.cache_dir,
+                    local_files_only=self.local_files_only,
+                    lazy_load=True,
+                )
         except (OSError, RuntimeError, ValueError) as exc:
             if self.local_files_only:
                 raise LocalEmbeddingUnavailable(
