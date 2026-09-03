@@ -17,7 +17,11 @@
     "intervention": "selective",
     "top_k": 3,
     "min_score": 0.55,
-    "write_policy": "accepted_evidence_only"
+    "write_policy": "accepted_evidence_only",
+    "calibration": {
+      "top_k_candidates": [1, 2, 3, 5],
+      "min_score_candidates": [0.4, 0.5, 0.55, 0.6, 0.7, 0.8]
+    }
   },
   "skill_providers": {
     "workspace": {"type": "filesystem", "path": "skills"},

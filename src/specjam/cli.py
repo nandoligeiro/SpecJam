@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from .calibration import calibrate_memory, load_calibration_cases
 from .classification import classify_request
 from .graph_engine import load_graph, record_route
 from .installer import inspect_installation, install, scaffold_flow, update, verify
@@ -116,7 +117,14 @@ def build_parser() -> argparse.ArgumentParser:
     memory_search.add_argument("--stage")
     memory_search.add_argument("--role")
     memory_search.add_argument("--run-id")
+    memory_search.add_argument("--increment-id")
     memory_search.add_argument("--exclude-run-id")
+    memory_calibrate = memory_commands.add_parser("calibrate", help="tune recall policy from labelled cases")
+    memory_calibrate.add_argument("--db", required=True)
+    memory_calibrate.add_argument("--dimensions", required=True, type=int)
+    memory_calibrate.add_argument("--cases", required=True)
+    memory_calibrate.add_argument("--top-k", action="append", type=int)
+    memory_calibrate.add_argument("--min-score", action="append", type=float)
     return parser
 
 
@@ -179,7 +187,8 @@ def main(argv: list[str] | None = None) -> int:
         matches = store.search(MemoryQuery(
             embedding=args.embedding, text=args.text, top_k=args.top_k, min_score=args.min_score,
             kinds=tuple(MemoryKind(kind) for kind in args.kind), graph_id=args.graph_id,
-            stage=args.stage, role=args.role, run_id=args.run_id, exclude_run_id=args.exclude_run_id,
+            stage=args.stage, role=args.role, run_id=args.run_id, increment_id=args.increment_id,
+            exclude_run_id=args.exclude_run_id,
         ))
         _emit({"matches": [{
             "id": match.record.id,
@@ -190,6 +199,16 @@ def main(argv: list[str] | None = None) -> int:
             "vector_score": round(match.vector_score, 6),
             "lexical_rank": match.lexical_rank,
         } for match in matches]})
+        return 0
+    if args.command == "memory" and args.memory_command == "calibrate":
+        store = SQLiteVectorMemory(args.db, args.dimensions)
+        options = {}
+        if args.top_k:
+            options["top_k_values"] = tuple(args.top_k)
+        if args.min_score:
+            options["min_score_values"] = tuple(args.min_score)
+        report = calibrate_memory(store, load_calibration_cases(args.cases), **options)
+        _emit(report.to_dict())
         return 0
     return 2
 

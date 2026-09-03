@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "name": "recover a failed migration",
+      "embedding": [0.91, 0.08, 0.01],
+      "text": "retry a failed API database migration",
+      "relevant_ids": ["migration-recovery"],
+      "kinds": ["failure", "recovery", "procedure"],
+      "filters": {
+        "graph_id": "delivery",
+        "exclude_run_id": "current-run"
+      }
+    },
+    {
+      "name": "new topic should abstain",
+      "embedding": [-0.80, 0.15, 0.05],
+      "text": "unrelated new capability",
+      "relevant_ids": [],
+      "filters": {
+        "graph_id": "delivery",
+        "exclude_run_id": "current-run"
+      }
+    }
+  ]
+}

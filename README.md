@@ -35,6 +35,7 @@ uv run specjam inspect
 uv run specjam classify "Add a new payment capability"
 uv run specjam flow scaffold --flow delivery --slug payment-capability
 uv run specjam memory init --db .specjam/memory/specjam.db --dimensions 3
+uv run specjam memory calibrate --db .specjam/memory/specjam.db --dimensions 3 --cases examples/memory-calibration.json
 ```
 
 The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existing bridge files are preserved unless `--force` is supplied. Runtime state is ignored; the lockfile and managed definitions remain inspectable.
@@ -100,6 +101,8 @@ Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`
 SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines exact cosine search, SQLite FTS5 when available, and graph/stage/role filters. Reviewer sessions remain unprimed by default.
 
 The database is a rebuildable projection; accepted artifacts and append-only trails remain the source of truth. Embedding providers are adapters, so the dependency-free core sends no data to a model vendor. See [SQLite vector memory](docs/vector-memory.md) for the lifecycle, CLI, integration contract, and research basis.
+
+Recall defaults are starting points, not production claims. `specjam memory calibrate` evaluates labelled positive and abstention cases and recommends `top_k` and `min_score` using precision, recall, ranking quality, abstention, and context cost.
 
 ## Versioned skill providers
 

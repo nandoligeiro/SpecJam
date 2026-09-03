@@ -78,6 +78,51 @@ specjam memory search \
   --graph-id delivery --top-k 3
 ```
 
+## Calibrating recall
+
+Do not promote the default `top_k=3` and `min_score=0.55` to production folklore. Build a labelled suite from real objectives and accepted trails, including negative cases whose correct result is no memory. Each case contains its query vector, optional text and structural filters, plus the IDs that should be returned:
+
+```json
+{
+  "cases": [
+    {
+      "name": "recover migration failure",
+      "embedding": [0.91, 0.08, 0.01],
+      "text": "retry a failed API migration",
+      "relevant_ids": ["migration-recovery"],
+      "kinds": ["failure", "recovery", "procedure"],
+      "filters": {"graph_id": "delivery"}
+    },
+    {
+      "name": "new topic should abstain",
+      "embedding": [-0.80, 0.15, 0.05],
+      "relevant_ids": [],
+      "filters": {"graph_id": "delivery"}
+    }
+  ]
+}
+```
+
+Run the grid search:
+
+```bash
+specjam memory calibrate \
+  --db .specjam/memory/specjam.db --dimensions 3 \
+  --cases examples/memory-calibration.json \
+  --top-k 1 --top-k 2 --top-k 3 --top-k 5 \
+  --min-score 0.4 --min-score 0.55 --min-score 0.7 --min-score 0.8
+```
+
+The report recommends a policy from five signals:
+
+- precision: how much retrieved context was relevant;
+- recall: how much labelled relevant context was found;
+- mean reciprocal rank: how early the first relevant item appeared;
+- abstention accuracy: whether irrelevant objectives correctly received no memory;
+- context efficiency: how few items were delivered relative to the largest tested `top_k`.
+
+The default weights value precision and recall equally, then ranking, abstention and context cost. They are explicit in `CalibrationWeights` so a consuming workspace can choose a stricter cost or abstention policy. Recalibrate per embedding model and after meaningful changes to the memory corpus.
+
 ## Research basis
 
 - [Harness-of-Harness](https://arxiv.org/abs/2609.01481): incremental, independently evaluated, continually improving harness execution.

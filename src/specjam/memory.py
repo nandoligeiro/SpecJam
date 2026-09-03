@@ -85,6 +85,7 @@ class MemoryQuery:
     stage: str | None = None
     role: str | None = None
     run_id: str | None = None
+    increment_id: str | None = None
     exclude_run_id: str | None = None
 
     def __post_init__(self) -> None:
@@ -226,7 +227,8 @@ class SQLiteVectorMemory:
         sql = "SELECT * FROM memory_records WHERE dimensions = ?"
         values: list[object] = [self.dimensions]
         filters = (
-            ("graph_id", query.graph_id), ("stage", query.stage), ("role", query.role), ("run_id", query.run_id),
+            ("graph_id", query.graph_id), ("stage", query.stage), ("role", query.role),
+            ("run_id", query.run_id), ("increment_id", query.increment_id),
         )
         for column, value in filters:
             if value is not None:

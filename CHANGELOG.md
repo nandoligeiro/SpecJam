@@ -7,6 +7,8 @@
 - Added selective memory injection into implementation sessions while keeping reviewers independent.
 - Added a vendor-neutral `EmbeddingProvider` contract and memory policy.
 - Added `specjam memory init`, `add`, and `search` commands.
+- Added labelled offline calibration for `top_k` and `min_score`, including negative cases where abstention is correct.
+- Added `specjam memory calibrate` with precision, recall, reciprocal-rank, abstention, and context-cost metrics.
 - Documented the rebuildable-projection boundary and research basis for hybrid memory.
 
 ## 0.1.1 — 2026-09-02
