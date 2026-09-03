@@ -4,9 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .learning import (
+    Evaluation,
+    EvaluationVerdict,
+    Experience,
+    LearningLoop,
+    LearningResult,
+    ReflectionCandidate,
+)
 from .memory import EmbeddingProvider, MemoryMatch, MemoryPolicy, MemoryQuery, MemoryStore
 from .model import FlowGraph
-from .sessions import SessionContextItem, SessionManager, SessionPolicy, SessionRecord, SessionRequest, SessionStrategy
+from .sessions import SessionContextItem, SessionManager, SessionPolicy, SessionRecord, SessionRequest, SessionStatus, SessionStrategy
 from .skills import ResolvedSkill, SkillReference, SkillResolver
 
 
@@ -21,6 +29,12 @@ class IncrementPlan:
     memories: tuple[MemoryMatch, ...] = ()
 
 
+@dataclass(frozen=True)
+class IncrementCompletion:
+    session: SessionRecord
+    learning: LearningResult | None
+
+
 class MetaHarnessRuntime:
     """Coordinates graph policy; concrete harness adapters remain outside the core."""
 
@@ -31,6 +45,7 @@ class MetaHarnessRuntime:
         memory: MemoryStore | None = None,
         embedder: EmbeddingProvider | None = None,
         memory_policy: MemoryPolicy | None = None,
+        learning: LearningLoop | None = None,
     ):
         if (memory is None) != (embedder is None):
             raise ValueError("memory and embedder must be configured together")
@@ -39,6 +54,7 @@ class MetaHarnessRuntime:
         self.memory = memory
         self.embedder = embedder
         self.memory_policy = memory_policy or MemoryPolicy()
+        self.learning = learning
 
     def plan_increment(self, graph: FlowGraph, stage: str, run_id: str, increment_id: str, objective: str) -> IncrementPlan:
         node = graph.nodes[stage]
@@ -77,6 +93,50 @@ class MetaHarnessRuntime:
             metadata={"graph": graph.id, "stage": stage, "reviewer": subagent.role},
         )) for subagent in node.subagents)
         return IncrementPlan(graph.id, stage, increment_id, implementation, reviewers, resolved, memories)
+
+    def complete_increment(
+        self,
+        session_id: str,
+        evaluation: Evaluation,
+        candidates: tuple[ReflectionCandidate, ...] = (),
+    ) -> IncrementCompletion:
+        """Close one execution through evaluation, reflection and governed learning."""
+
+        session = self.sessions.get(session_id)
+        if session.status not in {SessionStatus.RUNNING, SessionStatus.WAITING}:
+            raise ValueError(f"session must be running or waiting, got {session.status.value}")
+        if evaluation.verdict is EvaluationVerdict.ACCEPTED and self.learning is None:
+            raise ValueError("accepted completion requires a configured learning loop")
+        session = self.sessions.transition(
+            session_id,
+            SessionStatus.EVALUATING,
+            {"verdict": evaluation.verdict.value, "evidence_refs": list(evaluation.evidence_refs)},
+        )
+        if evaluation.verdict is EvaluationVerdict.REJECTED:
+            session = self.sessions.transition(session_id, SessionStatus.BLOCKED, {"reason": evaluation.summary})
+            return IncrementCompletion(session, None)
+        if evaluation.verdict is EvaluationVerdict.INCONCLUSIVE:
+            session = self.sessions.transition(session_id, SessionStatus.WAITING, {"reason": evaluation.summary})
+            return IncrementCompletion(session, None)
+        session = self.sessions.transition(session_id, SessionStatus.REFLECTING, {"candidate_count": len(candidates)})
+        request = session.request
+        experience = Experience(
+            run_id=request.run_id,
+            increment_id=request.increment_id,
+            graph_id=str(request.metadata.get("graph", "")),
+            stage=str(request.metadata.get("stage", "")),
+            objective=request.objective,
+            outcome_ref=str(request.metadata.get("outcome_ref", f"trail://{request.run_id}/{request.increment_id}/outcome")),
+        )
+        result = self.learning.learn(experience, evaluation, candidates)
+        session = self.sessions.transition(session_id, SessionStatus.ACCEPTED)
+        session = self.sessions.transition(
+            session_id,
+            SessionStatus.LEARNED,
+            {"promoted": [record.id for record in result.promoted], "rejected_count": len(result.rejected)},
+        )
+        session = self.sessions.transition(session_id, SessionStatus.CLOSED)
+        return IncrementCompletion(session, result)
 
     def _recall(self, graph_id: str, run_id: str, objective: str) -> tuple[MemoryMatch, ...]:
         policy = self.memory_policy

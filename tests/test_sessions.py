@@ -1,6 +1,8 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from specjam.sessions import SessionManager, SessionPolicy, SessionRequest, SessionStatus, SessionStrategy
+from specjam.sessions import SessionManager, SessionPolicy, SessionRequest, SessionStatus, SessionStrategy, SessionTrailStore
 
 
 class FakeHarness:
@@ -46,6 +48,32 @@ class SessionManagerTests(unittest.TestCase):
         ))
         with self.assertRaisesRegex(KeyError, "unknown execution harness"):
             manager.start(planned.session_id)
+
+    def test_lifecycle_is_validated_and_audited(self):
+        with tempfile.TemporaryDirectory() as directory:
+            trail = SessionTrailStore(Path(directory) / "sessions.jsonl")
+            manager = SessionManager({"default": FakeHarness()}, events=trail)
+            planned = manager.plan(SessionRequest(
+                "run-1", "inc-1", "implementation", "build", "agent", SessionPolicy(),
+            ))
+            manager.start(planned.session_id)
+            manager.transition(planned.session_id, SessionStatus.EVALUATING)
+            manager.transition(planned.session_id, SessionStatus.REFLECTING)
+            manager.transition(planned.session_id, SessionStatus.ACCEPTED)
+            manager.transition(planned.session_id, SessionStatus.LEARNED)
+            manager.transition(planned.session_id, SessionStatus.CLOSED)
+            self.assertEqual(
+                [entry["status"] for entry in trail.read()],
+                ["planned", "running", "evaluating", "reflecting", "accepted", "learned", "closed"],
+            )
+
+    def test_invalid_lifecycle_transition_is_rejected(self):
+        manager = SessionManager()
+        planned = manager.plan(SessionRequest(
+            "run-1", "inc-1", "implementation", "build", "agent", SessionPolicy(),
+        ))
+        with self.assertRaisesRegex(ValueError, "planned -> accepted"):
+            manager.transition(planned.session_id, SessionStatus.ACCEPTED)
 
 
 if __name__ == "__main__":

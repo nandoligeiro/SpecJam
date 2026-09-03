@@ -9,6 +9,7 @@ The first release combines three ideas:
 - **A local workspace**: a standard-library-only CLI that installs, verifies, inspects, updates, and scaffolds the method in any repository.
 - **A meta-harness runtime**: increment-scoped sessions, harness adapters, versioned skill resolution, independent reviewer sessions, and auditable execution plans.
 - **Governed memory**: typed SQLite records, vector and lexical recall, structured scope, and mandatory provenance.
+- **Governed learning**: evaluated experience, explicit reflection candidates, and deterministic promotion into episodic or semantic memory.
 
 ## Quick start
 
@@ -104,6 +105,37 @@ The database is a rebuildable projection; accepted artifacts and append-only tra
 
 Recall defaults are starting points, not production claims. `specjam memory calibrate` evaluates labelled positive and abstention cases and recommends `top_k` and `min_score` using precision, recall, ranking quality, abstention, and context cost.
 
+## Closed learning loop
+
+SpecJam treats execution history and reusable memory as different things:
+
+```text
+experience -> evaluation -> reflection candidates -> promotion policy -> memory
+     ^                                                               |
+     +--------- retrieval -> session -> execution --------------------+
+```
+
+Raw experience remains in append-only trails. A reflection candidate reaches
+episodic memory only after an accepted evaluation with evidence and a minimum
+confidence. Semantic memory has a stricter threshold because it generalizes an
+episode into reusable guidance. Reflection produces candidates but cannot write
+memory directly; `LearningLoop` owns the deterministic single-writer gate.
+
+An accepted increment follows a validated lifecycle:
+
+```text
+RUNNING -> EVALUATING -> REFLECTING -> ACCEPTED -> LEARNED -> CLOSED
+```
+
+Every status change may be written to an append-only `SessionTrailStore` with
+its run, increment, prior status, timestamp, evidence, and learning result.
+Rejected evaluations become `BLOCKED`; inconclusive evaluations become
+`WAITING`. Illegal transitions fail before an external harness is called.
+
+This keeps the SQLite database rebuildable and prevents failed executions,
+unsupported conclusions, and low-confidence model output from becoming future
+context merely because they were generated.
+
 ## Versioned skill providers
 
 Graph nodes may invoke workspace or external skills through `provider/name@version` references. `SkillResolver` records the resolved version and a SHA-256 content hash, so a run can explain exactly which capability was loaded. The default workspace configuration includes a provider contract for [Ligeiro Mindware](https://github.com/nandoligeiro/ligeiro-mindware); network and Git access remain adapter concerns outside the dependency-free core.
@@ -111,6 +143,12 @@ Graph nodes may invoke workspace or external skills through `provider/name@versi
 ## Postmortem as a governed loop
 
 The Postmortem graph now separates `triage → evidence → root-cause → actions → synthesis → follow-up`. Evidence collection and reviewers are read-only; only the synthesis session writes the shared postmortem. This preserves the distinction between evidence, hypothesis, cause, and corrective action.
+
+Post-mortem is the default privileged producer of semantic memory. Its accepted,
+evidenced reflections may be promoted when confidence is at least `0.90`;
+ordinary Delivery and Discovery executions produce episodic memory by default.
+The allowlist and thresholds are explicit `PromotionPolicy` configuration, not
+model discretion.
 
 ## RWSA contract
 
