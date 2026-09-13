@@ -6,7 +6,7 @@ SpecJam governs engineering work while remaining independent from the harness th
 Tracker / human intent
         |
         v
-SpecJam flow + increment planner
+SpecJam flow + Harness Planner
         |
         v
 Session Manager -----> Skill Resolver
@@ -19,8 +19,10 @@ ExecutionHarness
         v
 evidence + reviewers + synthesis
         |
-        v
-append-only run trail
+        +----> evaluation + candidate
+                         |
+                         v
+                    Evolution Gate
 ```
 
 ## Responsibility boundaries
@@ -29,6 +31,8 @@ append-only run trail
 - **Execution harness** edits repositories, runs tools and reports evidence. Devin is the first intended adapter; the core does not depend on it.
 - **Skill provider** resolves a portable capability by provider, name and version. Ligeiro Mindware is the first configured external provider.
 - **Memory store** retrieves a bounded set of typed, cited experiences. SQLite is a rebuildable projection; trail and artifacts remain authoritative.
+- **Harness planner** composes a content-addressed task-specific runtime policy and records it in the session.
+- **Evolution gate** compares an evidenced candidate with its baseline and rejects regression, over-budget execution, and overly broad changes.
 - **Reviewer session** is isolated and read-only. It cannot modify the implementation or the shared artifact.
 - **Synthesis session** is the only writer after parallel reviews.
 

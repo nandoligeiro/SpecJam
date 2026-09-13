@@ -8,8 +8,9 @@ The first release combines three ideas:
 - **RWSA skills**: Routing, Workflow, Semantics, and Attachments as an executable contract for reusable agent capabilities.
 - **A local workspace**: a standard-library-only CLI that installs, verifies, inspects, updates, and scaffolds the method in any repository.
 - **A meta-harness runtime**: increment-scoped sessions, harness adapters, versioned skill resolution, independent reviewer sessions, and auditable execution plans.
-- **Governed memory**: typed SQLite records, vector and lexical recall, structured scope, and mandatory provenance.
+- **Governed memory**: migratable SQLite records, vector and lexical recall, explainable ranking, lifecycle feedback, bounded context, and mandatory provenance.
 - **Governed learning**: evaluated experience, explicit reflection candidates, and deterministic promotion into episodic or semantic memory.
+- **Adaptive harness composition**: task-aware memory routing, versioned runtime policies, bounded optimization, and regression-gated evolution.
 
 ## Quick start
 
@@ -24,7 +25,7 @@ specjam install
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.2.0' specjam --help
+uvx --from 'specjam==0.3.0' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -74,6 +75,10 @@ increment --> session manager --> execution harness
                    |                    |
                    +--> isolated reviews
                    +--> versioned skills
+
+task + graph + experience --> harness planner --> versioned runtime harness
+                                      |
+                                      +--> candidate --> evolution gate
 ```
 
 The route function never writes files, invokes tools, or calls a model. Persistence belongs to the trail adapter. This split makes the highest-risk policy easy to test.
@@ -109,11 +114,27 @@ Every verifiable increment may create one implementation session, zero or more i
 
 The core exposes an `ExecutionHarness` protocol rather than depending on Devin, Codex, Claude Code, or a cloud API. Adapters start and monitor external sessions; SpecJam retains routing policy, budgets, evidence, and auditability.
 
+Before creating a session, `HarnessPlanner` classifies the task, routes memory
+proportionally, then composes a content-addressed runtime configuration. The
+session records the exact harness version and policy. Proposed changes are
+bounded and must pass `EvolutionGate`; no execution may rewrite the accepted
+harness merely because it produced a plausible reflection. See
+[Harness evolution](docs/harness-evolution.md).
+
 Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`, `parallel`, and `exclusive`.
 
 ## Selective SQLite vector memory
 
 SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines SQLite FTS5, `sqlite-vec` cosine KNN when the local extra is installed, and graph/stage/role filters. A portable exact-cosine backend remains available as fallback. Reviewer sessions remain unprimed by default.
+
+Every recall is traced with its candidates, selected IDs, score signals, latency,
+and context budget. Evaluation may report exactly which memories were consumed;
+repeated success promotes `validated` memory to `trusted`, while repeated failure
+deprecates it and removes it from default recall. Project and repository filters
+keep local experience from leaking across unrelated workspaces.
+
+Credential-shaped content is rejected before persistence; detection errors expose
+only the marker type and never echo the suspected secret.
 
 The database is a rebuildable projection; accepted artifacts and append-only trails remain the source of truth. Embedding providers are adapters, so the dependency-free core sends no data to a model vendor. See [SQLite vector memory](docs/vector-memory.md) for the lifecycle, CLI, integration contract, and research basis.
 
@@ -185,7 +206,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.2.0
+uv version 0.3.0
 uv build --no-sources
 uv publish
 ```
@@ -194,7 +215,7 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.2.0 adds governed SQLite vector memory with hybrid recall, typed provenance, and selective delivery to implementation sessions. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+Version 0.3.0 adds task-aware harness composition and regression-gated harness evolution on top of governed SQLite vector memory. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
 
 ## License
 

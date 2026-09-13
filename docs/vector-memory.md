@@ -10,8 +10,10 @@ Long-horizon agent research does not support sending every remembered item to ev
 - exact cosine retrieval over float32 vectors;
 - FTS5 lexical retrieval when the Python SQLite build provides it;
 - structural filters for graph, stage, role, run, increment, and kind;
+- project and repository isolation;
 - mandatory `source_ref` provenance;
-- selective delivery of at most `top_k` memories.
+- explainable semantic, lexical, recency, outcome, and confidence signals;
+- selective delivery bounded by both item count and character budget.
 
 The implementation session receives cited memories. Independent reviewer sessions do not receive them automatically, preserving an unprimed evaluation boundary.
 
@@ -34,6 +36,55 @@ bounded session context
 ```
 
 Write policy defaults to `accepted_evidence_only`: never learn automatically from an unvalidated model assertion. Failures and recovery procedures should be committed after evaluation, with a reference to the supporting trail or artifact.
+
+Memories move through guarded projection states:
+
+```text
+candidate -> validated -> trusted
+    |             |          |
+    +-> rejected  +----------+-> deprecated
+                       deprecated -> validated (explicit revalidation)
+```
+
+Normal recall includes only `validated` and `trusted`. Three consumed retrievals
+with an average outcome of at least `0.8` promote a validated memory to trusted;
+an average at or below `0.2` deprecates it. These defaults are deterministic and
+can be changed when constructing `SQLiteVectorMemory`.
+
+## Schema migrations and retrieval traces
+
+The database carries an explicit schema version. Opening a v2 projection upgrades
+it transactionally to v3, preserving records and adding lifecycle, confidence,
+outcome, usage, project, repository, and retrieval-event data. A projection newer
+than the running package is rejected instead of being interpreted optimistically.
+
+Each traced search persists:
+
+- query policy and structural filters;
+- candidate count and selected IDs;
+- semantic, lexical, recency, outcome, and confidence scores;
+- retrieval latency;
+- IDs actually consumed and the later execution outcome.
+
+The CLI returns `retrieval_event_id` even when no result passes the gate. Feed the
+execution result back only for memories the agent demonstrably used:
+
+```bash
+specjam memory feedback \
+  --event-id <retrieval-event-id> \
+  --used-id <memory-id> \
+  --outcome-score 1.0
+```
+
+Lifecycle changes are guarded:
+
+```bash
+specjam memory state --id <memory-id> --to deprecated
+```
+
+Before insertion, SpecJam checks content, source references, and metadata for
+credential assignments, AWS access keys, JWTs, private keys, and bearer headers.
+Rejected errors name only the marker type; they never echo the suspected value.
 
 ## Offline automatic profile
 
@@ -95,7 +146,9 @@ specjam memory add \
   --source-ref trail://delivery-42/inc-4 --graph-id delivery
 
 specjam memory search \
-  --text "retry contract tests" --graph-id delivery --top-k 3
+  --text "retry contract tests" --graph-id delivery --top-k 3 \
+  --project cards --repository org/cards-api \
+  --max-context-characters 12000
 ```
 
 Precomputed vectors remain supported:

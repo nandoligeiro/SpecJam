@@ -10,9 +10,18 @@ from pathlib import Path
 from .calibration import calibrate_memory, load_calibration_cases
 from .classification import classify_request
 from .embeddings import DEFAULT_LOCAL_MODEL, FastEmbedProvider
+from .evolution import EvolutionGate, HarnessCandidate, HarnessMetrics, HarnessOptimizer
 from .graph_engine import load_graph, record_route
+from .harness import HarnessConfig, HarnessPlanner
 from .installer import inspect_installation, install, scaffold_flow, update, verify
-from .memory import MemoryKind, MemoryQuery, MemoryRecord, SQLiteVectorMemory
+from .memory import (
+    MemoryKind,
+    MemoryPolicy,
+    MemoryQuery,
+    MemoryRecord,
+    MemoryState,
+    SQLiteVectorMemory,
+)
 from .model import RouteState
 from .rws import load_rwsa, validate_rwsa
 
@@ -38,6 +47,13 @@ def _embedding(value: str) -> tuple[float, ...]:
         return tuple(float(item) for item in parsed)
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
         raise argparse.ArgumentTypeError("embedding must be a JSON array of numbers") from exc
+
+
+def _json_object(path: str) -> dict[str, object]:
+    value = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"JSON file must contain an object: {path}")
+    return value
 
 
 def _add_local_options(parser: argparse.ArgumentParser, *, embedding: bool = False) -> None:
@@ -152,6 +168,11 @@ def build_parser() -> argparse.ArgumentParser:
     memory_add.add_argument("--graph-id")
     memory_add.add_argument("--stage")
     memory_add.add_argument("--role")
+    memory_add.add_argument("--project")
+    memory_add.add_argument("--repository")
+    memory_add.add_argument("--state", choices=tuple(state.value for state in MemoryState), default="validated")
+    memory_add.add_argument("--confidence", type=float, default=1.0)
+    memory_add.add_argument("--success-score", type=float, default=0.5)
     memory_search = memory_commands.add_parser("search", help="run structured hybrid recall")
     memory_search.add_argument("--db", default=".specjam/memory/specjam.db")
     _add_local_options(memory_search, embedding=True)
@@ -165,12 +186,52 @@ def build_parser() -> argparse.ArgumentParser:
     memory_search.add_argument("--run-id")
     memory_search.add_argument("--increment-id")
     memory_search.add_argument("--exclude-run-id")
+    memory_search.add_argument("--project")
+    memory_search.add_argument("--repository")
+    memory_search.add_argument("--state", action="append", choices=tuple(state.value for state in MemoryState))
+    memory_search.add_argument("--max-context-characters", type=int, default=12_000)
+    memory_feedback = memory_commands.add_parser("feedback", help="attach an outcome to one retrieval event")
+    memory_feedback.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_feedback)
+    memory_feedback.add_argument("--event-id", required=True)
+    memory_feedback.add_argument("--used-id", action="append", default=[])
+    memory_feedback.add_argument("--outcome-score", type=float, required=True)
+    memory_state = memory_commands.add_parser("state", help="apply a guarded memory lifecycle transition")
+    memory_state.add_argument("--db", default=".specjam/memory/specjam.db")
+    _add_local_options(memory_state)
+    memory_state.add_argument("--id", required=True)
+    memory_state.add_argument("--to", required=True, choices=tuple(state.value for state in MemoryState))
     memory_calibrate = memory_commands.add_parser("calibrate", help="tune recall policy from labelled cases")
     memory_calibrate.add_argument("--db", default=".specjam/memory/specjam.db")
     _add_local_options(memory_calibrate)
     memory_calibrate.add_argument("--cases", required=True)
     memory_calibrate.add_argument("--top-k", action="append", type=int)
     memory_calibrate.add_argument("--min-score", action="append", type=float)
+
+    harness = commands.add_parser("harness", help="compose and evolve runtime harnesses")
+    harness_commands = harness.add_subparsers(dest="harness_command", required=True)
+    harness_compose = harness_commands.add_parser("compose", help="compose a deterministic harness")
+    harness_compose.add_argument("--graph", required=True)
+    harness_compose.add_argument("--stage", required=True)
+    harness_compose.add_argument("--objective", nargs="+", required=True)
+    harness_compose.add_argument("--skill", action="append", default=[])
+    harness_compose.add_argument("--tool", action="append", default=[])
+    harness_compose.add_argument("--parent-version")
+    harness_compose.add_argument("--project")
+    harness_compose.add_argument("--repository")
+    harness_compose.add_argument("--memory-top-k", type=int, default=3)
+    harness_compose.add_argument("--memory-min-score", type=float, default=0.55)
+    harness_compose.add_argument("--memory-max-characters", type=int, default=12_000)
+    harness_compose.add_argument("--disable-memory", action="store_true")
+    harness_propose = harness_commands.add_parser("propose", help="create a bounded evolution candidate")
+    harness_propose.add_argument("--baseline", required=True)
+    harness_propose.add_argument("--changes", required=True)
+    harness_propose.add_argument("--hypothesis", required=True)
+    harness_propose.add_argument("--evidence-ref", action="append", required=True)
+    harness_gate = harness_commands.add_parser("gate", help="evaluate a candidate against regression metrics")
+    harness_gate.add_argument("--candidate", required=True)
+    harness_gate.add_argument("--baseline-metrics", required=True)
+    harness_gate.add_argument("--candidate-metrics", required=True)
     return parser
 
 
@@ -200,7 +261,8 @@ def main(argv: list[str] | None = None) -> int:
         graph = load_graph(args.graph)
         state = RouteState(args.stage, frozenset(args.artifact), _flags(args.flag))
         if args.trail:
-            decision = record_route(__import__("specjam.graph_engine", fromlist=["TrailStore"]).TrailStore(args.trail), args.run_id, graph, state)
+            trail_type = __import__("specjam.graph_engine", fromlist=["TrailStore"]).TrailStore
+            decision = record_route(trail_type(args.trail), args.run_id, graph, state)
         else:
             from .graph_engine import route
             decision = route(graph, state)
@@ -240,7 +302,9 @@ def main(argv: list[str] | None = None) -> int:
         record = MemoryRecord.create(
             id=args.id, kind=args.kind, content=args.content, embedding=embedding,
             source_ref=args.source_ref, run_id=args.run_id, increment_id=args.increment_id,
-            graph_id=args.graph_id, stage=args.stage, role=args.role,
+            graph_id=args.graph_id, stage=args.stage, role=args.role, project=args.project,
+            repository=args.repository, state=args.state, confidence=args.confidence,
+            success_score=args.success_score,
         )
         inserted = store.add(record)
         _emit({"id": record.id, "inserted": inserted, "records": store.count()})
@@ -256,8 +320,13 @@ def main(argv: list[str] | None = None) -> int:
             kinds=tuple(MemoryKind(kind) for kind in args.kind), graph_id=args.graph_id,
             stage=args.stage, role=args.role, run_id=args.run_id, increment_id=args.increment_id,
             exclude_run_id=args.exclude_run_id,
+            project=args.project, repository=args.repository,
+            states=tuple(MemoryState(state) for state in args.state) if args.state else (
+                MemoryState.VALIDATED, MemoryState.TRUSTED,
+            ),
+            max_context_characters=args.max_context_characters,
         ))
-        _emit({"matches": [{
+        _emit({"retrieval_event_id": store.last_retrieval_event_id, "matches": [{
             "id": match.record.id,
             "kind": match.record.kind.value,
             "content": match.record.content,
@@ -265,7 +334,25 @@ def main(argv: list[str] | None = None) -> int:
             "score": round(match.score, 6),
             "vector_score": round(match.vector_score, 6),
             "lexical_rank": match.lexical_rank,
+            "state": match.record.state.value,
+            "explanation": match.explanation(),
         } for match in matches]})
+        return 0
+    if args.command == "memory" and args.memory_command in {"feedback", "state"}:
+        if args.dimensions is not None:
+            dimensions, provider = args.dimensions, None
+        else:
+            provider = _provider(args)
+            dimensions = provider.dimensions
+        store = _configured_store(args, dimensions, provider)
+        if args.memory_command == "feedback":
+            store.record_retrieval_feedback(
+                args.event_id, used_ids=args.used_id, outcome_score=args.outcome_score,
+            )
+            _emit(store.retrieval_event(args.event_id))
+            return 0
+        record = store.update_state(args.id, args.to)
+        _emit({"id": record.id, "state": record.state.value})
         return 0
     if args.command == "memory" and args.memory_command == "calibrate":
         if args.dimensions is not None:
@@ -282,6 +369,52 @@ def main(argv: list[str] | None = None) -> int:
         report = calibrate_memory(store, load_calibration_cases(args.cases), **options)
         _emit(report.to_dict())
         return 0
+    if args.command == "harness" and args.harness_command == "compose":
+        graph = load_graph(args.graph)
+        try:
+            node = graph.nodes[args.stage]
+        except KeyError as exc:
+            raise ValueError(f"unknown graph stage: {args.stage}") from exc
+        memory_policy = MemoryPolicy(
+            enabled=not args.disable_memory,
+            top_k=args.memory_top_k,
+            min_score=args.memory_min_score,
+            max_context_characters=args.memory_max_characters,
+        )
+        config = HarnessPlanner().compose(
+            graph=graph,
+            node=node,
+            objective=" ".join(args.objective),
+            skills=tuple(args.skill),
+            tools=tuple(args.tool),
+            base_memory_policy=memory_policy,
+            parent_version=args.parent_version,
+            metadata={
+                **({"project": args.project} if args.project else {}),
+                **({"repository": args.repository} if args.repository else {}),
+            },
+        )
+        _emit(config.to_dict())
+        return 0
+    if args.command == "harness" and args.harness_command == "propose":
+        baseline = HarnessConfig.from_dict(_json_object(args.baseline))
+        candidate = HarnessOptimizer().propose(
+            baseline,
+            changes=_json_object(args.changes),
+            hypothesis=args.hypothesis,
+            evidence_refs=tuple(args.evidence_ref),
+        )
+        _emit(candidate.to_dict())
+        return 0
+    if args.command == "harness" and args.harness_command == "gate":
+        candidate = HarnessCandidate.from_dict(_json_object(args.candidate))
+        decision = EvolutionGate().evaluate(
+            candidate,
+            HarnessMetrics.from_dict(_json_object(args.baseline_metrics)),
+            HarnessMetrics.from_dict(_json_object(args.candidate_metrics)),
+        )
+        _emit(decision.to_dict())
+        return 0 if decision.accepted else 3
     return 2
 
 

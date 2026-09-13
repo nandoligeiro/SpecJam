@@ -1,7 +1,25 @@
 # Changelog
 
+## 0.3.0 — 2026-09-13
+
+- Added deterministic, task-aware `HarnessPlanner` composition from graph, task level, skills, tools, and memory policy.
+- Added proportional memory routing: off for L0, bounded for L1/L2, and expanded governed recall for L3.
+- Added content-addressed, serializable harness versions with lineage and tamper detection.
+- Added runtime provenance for the generated harness version, full config, selected memories, and reviewer parent.
+- Added bounded `HarnessOptimizer` proposals with immutable flow/task identity and mandatory evidence.
+- Added `EvolutionGate` checks for task success, artifact quality, constraints, regression, generalization, component degradation, cost, latency, human intervention, and change scope.
+- Added `specjam harness compose`, `propose`, and `gate`; rejected candidates return a CI-friendly non-zero exit code.
+
 ## 0.2.0 — 2026-09-03
 
+- Added explicit SQLite schema migrations with safe v2-to-v3 upgrades and future-version rejection.
+- Added memory lifecycle states (`candidate`, `validated`, `trusted`, `deprecated`, `rejected`).
+- Added project/repository isolation and hard context-character budgets.
+- Added explainable hybrid ranking across semantic, lexical, recency, outcome, and confidence signals.
+- Added retrieval-event telemetry with selected-context provenance, latency, usage, and outcome feedback.
+- Added guarded automatic trust/deprecation based only on memories reported as consumed.
+- Connected runtime evaluation feedback to the retrieval event that supplied session context.
+- Added pre-persistence secret detection that reports marker types without echoing values.
 - Added a typed, provenance-aware SQLite memory store using float32 vector BLOBs.
 - Added exact cosine, optional FTS5 lexical recall, and graph/stage/role/run/kind filters.
 - Added selective memory injection into implementation sessions while keeping reviewers independent.

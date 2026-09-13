@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Mapping, Protocol, Sequence
 
-from .memory import EmbeddingProvider, MemoryKind, MemoryRecord
+from .memory import EmbeddingProvider, MemoryKind, MemoryRecord, MemoryState
 
 
 class EvaluationVerdict(str, Enum):
@@ -32,6 +32,8 @@ class Experience:
     stage: str
     objective: str
     outcome_ref: str
+    project: str | None = None
+    repository: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("run_id", "increment_id", "graph_id", "stage", "objective", "outcome_ref"):
@@ -142,6 +144,10 @@ class LearningLoop:
                 graph_id=experience.graph_id,
                 stage=experience.stage,
                 role="reflection",
+                project=experience.project,
+                repository=experience.repository,
+                state=MemoryState.VALIDATED,
+                confidence=candidate.confidence,
                 metadata=metadata,
             )
             self.memory.add(record)
