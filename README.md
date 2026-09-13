@@ -10,6 +10,7 @@ The first release combines three ideas:
 - **A meta-harness runtime**: increment-scoped sessions, harness adapters, versioned skill resolution, independent reviewer sessions, and auditable execution plans.
 - **Governed memory**: migratable SQLite records, vector and lexical recall, explainable ranking, lifecycle feedback, bounded context, and mandatory provenance.
 - **Governed learning**: evaluated experience, explicit reflection candidates, and deterministic promotion into episodic or semantic memory.
+- **Adaptive harness composition**: task-aware memory routing, versioned runtime policies, bounded optimization, and regression-gated evolution.
 
 ## Quick start
 
@@ -24,7 +25,7 @@ specjam install
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.2.0' specjam --help
+uvx --from 'specjam==0.3.0' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -74,6 +75,10 @@ increment --> session manager --> execution harness
                    |                    |
                    +--> isolated reviews
                    +--> versioned skills
+
+task + graph + experience --> harness planner --> versioned runtime harness
+                                      |
+                                      +--> candidate --> evolution gate
 ```
 
 The route function never writes files, invokes tools, or calls a model. Persistence belongs to the trail adapter. This split makes the highest-risk policy easy to test.
@@ -108,6 +113,13 @@ Every verifiable increment may create one implementation session, zero or more i
 ```
 
 The core exposes an `ExecutionHarness` protocol rather than depending on Devin, Codex, Claude Code, or a cloud API. Adapters start and monitor external sessions; SpecJam retains routing policy, budgets, evidence, and auditability.
+
+Before creating a session, `HarnessPlanner` classifies the task, routes memory
+proportionally, then composes a content-addressed runtime configuration. The
+session records the exact harness version and policy. Proposed changes are
+bounded and must pass `EvolutionGate`; no execution may rewrite the accepted
+harness merely because it produced a plausible reflection. See
+[Harness evolution](docs/harness-evolution.md).
 
 Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`, `parallel`, and `exclusive`.
 
@@ -194,7 +206,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.2.0
+uv version 0.3.0
 uv build --no-sources
 uv publish
 ```
@@ -203,7 +215,7 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.2.0 adds governed SQLite vector memory with hybrid recall, typed provenance, and selective delivery to implementation sessions. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+Version 0.3.0 adds task-aware harness composition and regression-gated harness evolution on top of governed SQLite vector memory. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
 
 ## License
 

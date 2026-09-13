@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
+from .evolution import (
+    EvolutionDecision,
+    EvolutionGate,
+    HarnessCandidate,
+    HarnessMetrics,
+)
+from .harness import HarnessConfig, HarnessPlanner, MemoryRouting
 from .learning import (
     Evaluation,
     EvaluationVerdict,
@@ -35,6 +42,7 @@ class IncrementPlan:
     reviewers: tuple[SessionRecord, ...]
     skills: tuple[ResolvedSkill, ...]
     memories: tuple[MemoryMatch, ...] = ()
+    harness: HarnessConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +62,8 @@ class MetaHarnessRuntime:
         embedder: EmbeddingProvider | None = None,
         memory_policy: MemoryPolicy | None = None,
         learning: LearningLoop | None = None,
+        planner: HarnessPlanner | None = None,
+        evolution_gate: EvolutionGate | None = None,
     ):
         if (memory is None) != (embedder is None):
             raise ValueError("memory and embedder must be configured together")
@@ -63,6 +73,8 @@ class MetaHarnessRuntime:
         self.embedder = embedder
         self.memory_policy = memory_policy or MemoryPolicy()
         self.learning = learning
+        self.planner = planner or HarnessPlanner()
+        self.evolution_gate = evolution_gate or EvolutionGate()
 
     def plan_increment(
         self,
@@ -74,12 +86,37 @@ class MetaHarnessRuntime:
         *,
         project: str | None = None,
         repository: str | None = None,
+        tools: tuple[str, ...] = (),
+        parent_harness_version: str | None = None,
     ) -> IncrementPlan:
         node = graph.nodes[stage]
         policy = SessionPolicy.from_dict(node.session_policy)
         references = tuple(SkillReference.parse(value) for value in node.skills)
         resolved = self.skills.resolve(references)
-        memories = self._recall(graph.id, run_id, objective, project, repository)
+        effective_memory_policy = (
+            self.memory_policy
+            if self.memory is not None
+            else replace(self.memory_policy, enabled=False)
+        )
+        classification = self.planner.classify(objective, graph)
+        memory_routing = self.planner.route_memory(classification, effective_memory_policy)
+        memories = self._recall(
+            graph.id, run_id, objective, project, repository, memory_routing,
+        )
+        harness = self.planner.compose(
+            graph=graph,
+            node=node,
+            objective=objective,
+            skills=tuple(skill.reference.canonical for skill in resolved),
+            memories=memories,
+            tools=tools,
+            base_memory_policy=effective_memory_policy,
+            parent_version=parent_harness_version,
+            metadata={
+                **({"project": project} if project else {}),
+                **({"repository": repository} if repository else {}),
+            },
+        )
         context = tuple(SessionContextItem(
             kind=match.record.kind.value,
             content=match.record.content,
@@ -105,6 +142,8 @@ class MetaHarnessRuntime:
             context_items=context,
             metadata={
                 "graph": graph.id, "stage": stage,
+                "harness_version": harness.version,
+                "harness_config": harness.to_dict(),
                 **({"project": project} if project else {}),
                 **({"repository": repository} if repository else {}),
             },
@@ -118,9 +157,16 @@ class MetaHarnessRuntime:
             policy=SessionPolicy(strategy=SessionStrategy.ISOLATED, harness=policy.harness, read_only=True),
             skills=tuple(skill.reference.canonical for skill in resolved),
             input_artifacts=node.required_artifacts,
-            metadata={"graph": graph.id, "stage": stage, "reviewer": subagent.role},
+            metadata={
+                "graph": graph.id,
+                "stage": stage,
+                "reviewer": subagent.role,
+                "parent_harness_version": harness.version,
+            },
         )) for subagent in node.subagents)
-        return IncrementPlan(graph.id, stage, increment_id, implementation, reviewers, resolved, memories)
+        return IncrementPlan(
+            graph.id, stage, increment_id, implementation, reviewers, resolved, memories, harness,
+        )
 
     def complete_increment(
         self,
@@ -174,6 +220,20 @@ class MetaHarnessRuntime:
         session = self.sessions.transition(session_id, SessionStatus.CLOSED)
         return IncrementCompletion(session, result)
 
+    def evaluate_harness_candidate(
+        self,
+        candidate: HarnessCandidate,
+        baseline_metrics: HarnessMetrics,
+        candidate_metrics: HarnessMetrics,
+    ) -> EvolutionDecision:
+        """Apply the configured promotion gate without mutating the accepted harness."""
+
+        return self.evolution_gate.evaluate(
+            candidate,
+            baseline_metrics,
+            candidate_metrics,
+        )
+
     def _feedback_retrieval(
         self,
         session: SessionRecord,
@@ -214,20 +274,33 @@ class MetaHarnessRuntime:
         objective: str,
         project: str | None = None,
         repository: str | None = None,
+        routing: MemoryRouting | None = None,
     ) -> tuple[MemoryMatch, ...]:
         policy = self.memory_policy
-        if not policy.enabled or self.memory is None or self.embedder is None:
+        if (
+            not policy.enabled
+            or (routing is not None and not routing.enabled)
+            or self.memory is None
+            or self.embedder is None
+        ):
             return ()
+        top_k = routing.top_k if routing is not None else policy.top_k
+        min_score = routing.min_score if routing is not None else policy.min_score
+        max_characters = (
+            routing.max_context_characters
+            if routing is not None
+            else policy.max_context_characters
+        )
         vector = tuple(float(value) for value in self.embedder.embed(objective))
         return self.memory.search(MemoryQuery(
             embedding=vector,
             text=objective,
-            top_k=policy.top_k,
-            min_score=policy.min_score,
+            top_k=top_k,
+            min_score=min_score,
             kinds=policy.kinds,
             graph_id=graph_id,
             project=project,
             repository=repository,
             exclude_run_id=None if policy.include_current_run else run_id,
-            max_context_characters=policy.max_context_characters,
+            max_context_characters=max_characters,
         ))
