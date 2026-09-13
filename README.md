@@ -8,7 +8,7 @@ The first release combines three ideas:
 - **RWSA skills**: Routing, Workflow, Semantics, and Attachments as an executable contract for reusable agent capabilities.
 - **A local workspace**: a standard-library-only CLI that installs, verifies, inspects, updates, and scaffolds the method in any repository.
 - **A meta-harness runtime**: increment-scoped sessions, harness adapters, versioned skill resolution, independent reviewer sessions, and auditable execution plans.
-- **Governed memory**: typed SQLite records, vector and lexical recall, structured scope, and mandatory provenance.
+- **Governed memory**: migratable SQLite records, vector and lexical recall, explainable ranking, lifecycle feedback, bounded context, and mandatory provenance.
 - **Governed learning**: evaluated experience, explicit reflection candidates, and deterministic promotion into episodic or semantic memory.
 
 ## Quick start
@@ -114,6 +114,15 @@ Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`
 ## Selective SQLite vector memory
 
 SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines SQLite FTS5, `sqlite-vec` cosine KNN when the local extra is installed, and graph/stage/role filters. A portable exact-cosine backend remains available as fallback. Reviewer sessions remain unprimed by default.
+
+Every recall is traced with its candidates, selected IDs, score signals, latency,
+and context budget. Evaluation may report exactly which memories were consumed;
+repeated success promotes `validated` memory to `trusted`, while repeated failure
+deprecates it and removes it from default recall. Project and repository filters
+keep local experience from leaking across unrelated workspaces.
+
+Credential-shaped content is rejected before persistence; detection errors expose
+only the marker type and never echo the suspected secret.
 
 The database is a rebuildable projection; accepted artifacts and append-only trails remain the source of truth. Embedding providers are adapters, so the dependency-free core sends no data to a model vendor. See [SQLite vector memory](docs/vector-memory.md) for the lifecycle, CLI, integration contract, and research basis.
 

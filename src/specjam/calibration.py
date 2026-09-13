@@ -170,6 +170,8 @@ def _evaluate(
             embedding=base.embedding, text=base.text, top_k=top_k, min_score=min_score,
             kinds=base.kinds, graph_id=base.graph_id, stage=base.stage, role=base.role,
             run_id=base.run_id, increment_id=base.increment_id, exclude_run_id=base.exclude_run_id,
+            project=base.project, repository=base.repository, states=base.states,
+            max_context_characters=base.max_context_characters, trace=False,
         ))
         returned = tuple(match.record.id for match in matches)
         true_positives += len(set(returned) & case.relevant_ids)

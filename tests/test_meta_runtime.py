@@ -65,6 +65,51 @@ class MetaHarnessRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "configured together"):
             MetaHarnessRuntime(SessionManager(), SkillResolver({"workspace": provider}), memory=object())
 
+    def test_evaluation_feeds_back_only_memories_used_by_the_session(self):
+        class FakeEmbedder:
+            dimensions = 3
+
+            def embed(self, text):
+                return (1, 0, 0)
+
+        class FakeHarness:
+            def start(self, request):
+                return "external-1"
+
+            def status(self, harness_session_id):
+                return "running"
+
+            def cancel(self, harness_session_id):
+                return None
+
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            memory = SQLiteVectorMemory(Path(directory) / "memory.db", dimensions=3)
+            memory.add(MemoryRecord.create(
+                id="scoped", kind=MemoryKind.RECOVERY, content="Retry the contract test",
+                embedding=(1, 0, 0), source_ref="trail://old", run_id="old",
+                graph_id="delivery", project="cards", repository="org/cards-api",
+            ))
+            sessions = SessionManager({"default": FakeHarness()})
+            provider = InMemorySkillProvider({("learning-domain-driven-design", "latest"): "# DDD"})
+            runtime = MetaHarnessRuntime(
+                sessions, SkillResolver({"ligeiro-mindware": provider}),
+                memory=memory, embedder=FakeEmbedder(), memory_policy=MemoryPolicy(min_score=0.0),
+            )
+            plan = runtime.plan_increment(
+                load_graph(GRAPH_DIR / "delivery-graph.json"), "build", "new", "inc-1", "Retry API",
+                project="cards", repository="org/cards-api",
+            )
+            sessions.start(plan.implementation.session_id)
+            completion = runtime.complete_increment(
+                plan.implementation.session_id,
+                Evaluation(EvaluationVerdict.REJECTED, ("test://failure",), "validator", "Failed"),
+                used_memory_ids=("scoped",),
+            )
+            self.assertEqual(completion.session.status, SessionStatus.BLOCKED)
+            self.assertEqual(memory.get("scoped").usage_count, 1)
+            self.assertEqual(memory.get("scoped").success_score, 0.0)
+
     def test_completes_running_increment_through_learning_and_close(self):
         class FakeEmbedder:
             dimensions = 3

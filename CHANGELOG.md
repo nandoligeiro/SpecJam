@@ -2,6 +2,14 @@
 
 ## 0.2.0 — 2026-09-03
 
+- Added explicit SQLite schema migrations with safe v2-to-v3 upgrades and future-version rejection.
+- Added memory lifecycle states (`candidate`, `validated`, `trusted`, `deprecated`, `rejected`).
+- Added project/repository isolation and hard context-character budgets.
+- Added explainable hybrid ranking across semantic, lexical, recency, outcome, and confidence signals.
+- Added retrieval-event telemetry with selected-context provenance, latency, usage, and outcome feedback.
+- Added guarded automatic trust/deprecation based only on memories reported as consumed.
+- Connected runtime evaluation feedback to the retrieval event that supplied session context.
+- Added pre-persistence secret detection that reports marker types without echoing values.
 - Added a typed, provenance-aware SQLite memory store using float32 vector BLOBs.
 - Added exact cosine, optional FTS5 lexical recall, and graph/stage/role/run/kind filters.
 - Added selective memory injection into implementation sessions while keeping reviewers independent.
