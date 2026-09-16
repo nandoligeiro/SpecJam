@@ -4,13 +4,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
+from .benchmark import BenchmarkComparator, Trajectory, TrajectoryStore
 from .calibration import calibrate_memory, load_calibration_cases
 from .classification import classify_request
+from .diagnosis import DiagnosisEngine, DiagnosisReport
 from .embeddings import DEFAULT_LOCAL_MODEL, FastEmbedProvider
 from .evolution import EvolutionGate, HarnessCandidate, HarnessMetrics, HarnessOptimizer
+from .execution import (
+    CommandExecutionHarness,
+    CommandProfile,
+    DevinExecutionHarness,
+    ExecutionOutcome,
+    execute_and_wait,
+    request_from_dict,
+)
 from .graph_engine import load_graph, record_route
 from .harness import HarnessConfig, HarnessPlanner
 from .installer import inspect_installation, install, scaffold_flow, update, verify
@@ -54,6 +65,33 @@ def _json_object(path: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError(f"JSON file must contain an object: {path}")
     return value
+
+
+def _add_execution_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--provider", required=True, choices=("codex", "claude", "devin"))
+    parser.add_argument("--workdir", default=".")
+    parser.add_argument("--state-dir", default=".specjam/executions")
+    parser.add_argument("--timeout", type=float, default=3600)
+    parser.add_argument("--poll-interval", type=float, default=1.0)
+    parser.add_argument("--devin-organization-id")
+    parser.add_argument("--devin-token-env", default="DEVIN_API_KEY")
+
+
+def _execution_harness(args):
+    if args.provider == "codex":
+        return CommandExecutionHarness(
+            CommandProfile.codex(), workdir=args.workdir, state_dir=args.state_dir,
+        )
+    if args.provider == "claude":
+        return CommandExecutionHarness(
+            CommandProfile.claude(), workdir=args.workdir, state_dir=args.state_dir,
+        )
+    if not args.devin_organization_id:
+        raise ValueError("--devin-organization-id is required for the Devin cloud adapter")
+    return DevinExecutionHarness(
+        args.devin_organization_id,
+        lambda: os.environ.get(args.devin_token_env, ""),
+    )
 
 
 def _add_local_options(parser: argparse.ArgumentParser, *, embedding: bool = False) -> None:
@@ -232,6 +270,36 @@ def build_parser() -> argparse.ArgumentParser:
     harness_gate.add_argument("--candidate", required=True)
     harness_gate.add_argument("--baseline-metrics", required=True)
     harness_gate.add_argument("--candidate-metrics", required=True)
+
+    execution = commands.add_parser("execution", help="run a neutral session through a configured agent")
+    execution_commands = execution.add_subparsers(dest="execution_command", required=True)
+    execution_run = execution_commands.add_parser("run", help="execute a serialized SessionRequest")
+    execution_run.add_argument("--request", required=True)
+    _add_execution_options(execution_run)
+
+    diagnosis = commands.add_parser("diagnose", help="attribute a normalized execution failure")
+    diagnosis.add_argument("--outcome", required=True)
+
+    replay = commands.add_parser("replay", help="capture or replay immutable trajectories")
+    replay_commands = replay.add_subparsers(dest="replay_command", required=True)
+    replay_capture = replay_commands.add_parser("capture", help="append an evaluated trajectory")
+    replay_capture.add_argument("--store", required=True)
+    replay_capture.add_argument("--request", required=True)
+    replay_capture.add_argument("--outcome", required=True)
+    replay_capture.add_argument("--metrics", required=True)
+    replay_capture.add_argument("--diagnosis")
+    replay_run = replay_commands.add_parser("run", help="re-execute a captured request")
+    replay_run.add_argument("--store", required=True)
+    replay_run.add_argument("--trajectory-id", required=True)
+    _add_execution_options(replay_run)
+
+    benchmark = commands.add_parser("benchmark", help="compare baseline and replay trajectories")
+    benchmark_commands = benchmark.add_subparsers(dest="benchmark_command", required=True)
+    benchmark_compare = benchmark_commands.add_parser("compare")
+    benchmark_compare.add_argument("--baseline-store", required=True)
+    benchmark_compare.add_argument("--candidate-store", required=True)
+    benchmark_compare.add_argument("--baseline-label", default="baseline")
+    benchmark_compare.add_argument("--candidate-label", default="candidate")
     return parser
 
 
@@ -415,6 +483,52 @@ def main(argv: list[str] | None = None) -> int:
         )
         _emit(decision.to_dict())
         return 0 if decision.accepted else 3
+    if args.command == "execution" and args.execution_command == "run":
+        request = request_from_dict(_json_object(args.request))
+        outcome = execute_and_wait(
+            _execution_harness(args), request,
+            timeout_seconds=args.timeout, poll_interval_seconds=args.poll_interval,
+        )
+        report = DiagnosisEngine().diagnose(outcome)
+        _emit({"outcome": outcome.to_dict(), "diagnosis": report.to_dict()})
+        return 0 if outcome.status.value == "succeeded" else 4
+    if args.command == "diagnose":
+        outcome = ExecutionOutcome.from_dict(_json_object(args.outcome))
+        _emit(DiagnosisEngine().diagnose(outcome).to_dict())
+        return 0
+    if args.command == "replay" and args.replay_command == "capture":
+        request = request_from_dict(_json_object(args.request))
+        outcome = ExecutionOutcome.from_dict(_json_object(args.outcome))
+        metrics = HarnessMetrics.from_dict(_json_object(args.metrics))
+        diagnosis = DiagnosisReport.from_dict(_json_object(args.diagnosis)) if args.diagnosis else None
+        trajectory = Trajectory.capture(request, outcome, metrics, diagnosis=diagnosis)
+        TrajectoryStore(args.store).append(trajectory)
+        _emit(trajectory.to_dict())
+        return 0
+    if args.command == "replay" and args.replay_command == "run":
+        baseline = TrajectoryStore(args.store).get(args.trajectory_id)
+        if baseline is None:
+            raise ValueError(f"unknown trajectory: {args.trajectory_id}")
+        outcome = execute_and_wait(
+            _execution_harness(args), baseline.request,
+            timeout_seconds=args.timeout, poll_interval_seconds=args.poll_interval,
+        )
+        report = DiagnosisEngine().diagnose(outcome)
+        _emit({
+            "replay_of": baseline.trajectory_id,
+            "outcome": outcome.to_dict(),
+            "diagnosis": report.to_dict(),
+        })
+        return 0 if outcome.status.value == "succeeded" else 4
+    if args.command == "benchmark" and args.benchmark_command == "compare":
+        report = BenchmarkComparator().compare(
+            TrajectoryStore(args.baseline_store).all(),
+            TrajectoryStore(args.candidate_store).all(),
+            baseline_label=args.baseline_label,
+            candidate_label=args.candidate_label,
+        )
+        _emit(report.to_dict())
+        return 0 if report.improved else 5
     return 2
 
 

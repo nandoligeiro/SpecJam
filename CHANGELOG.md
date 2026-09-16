@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-09-16
+
+- Added normalized execution outcomes and adapters for Codex CLI, Claude Code, and Devin v3 organization sessions.
+- Added deterministic failure diagnosis with evidence-linked recovery recommendations and governed reflection candidates.
+- Added append-only, secret-checked trajectory capture with exact request, outcome, metrics, diagnosis, and replay lineage.
+- Added replay through alternate harnesses and comparative benchmark reports with missing-case and regression detection.
+- Added `execution run`, `diagnose`, `replay capture`, `replay run`, and `benchmark compare` CLI commands.
+- Connected execution and automatic diagnosis to the meta-runtime without allowing observations to bypass the evolution gate.
+
 ## 0.3.0 — 2026-09-13
 
 - Added deterministic, task-aware `HarnessPlanner` composition from graph, task level, skills, tools, and memory policy.

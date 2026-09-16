@@ -12,6 +12,10 @@ SpecJam is a harness-neutral engineering method. Use natural language at the ent
 - Collect every reviewer result, including failed and blocked outcomes.
 - Exactly one synthesis writer may update the shared artifact after review.
 - Keep run trails local and opt-in aggregation only.
+- Normalize provider execution into status, evidence, usage, duration, and summary.
+- Treat automatic diagnosis as a confidence-scored hypothesis, never as root cause without evidence.
+- Capture only evaluated executions as immutable trajectories; replays point to their baseline.
+- Reject incomplete comparative benchmark suites before harness promotion.
 
 ## Flow vocabulary
 

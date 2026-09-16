@@ -3,6 +3,7 @@ from pathlib import Path
 
 from specjam.graph_engine import load_graph
 from specjam.evolution import HarnessMetrics, HarnessOptimizer
+from specjam.execution import ExecutionOutcome, ExecutionStatus
 from specjam.learning import Evaluation, EvaluationVerdict, LearningLoop, MemoryLayer, ReflectionCandidate
 from specjam.memory import MemoryKind, MemoryPolicy, MemoryRecord, SQLiteVectorMemory
 from specjam.meta_runtime import MetaHarnessRuntime
@@ -14,6 +15,38 @@ GRAPH_DIR = Path(__file__).parents[1] / "src/specjam/payload/workspace/graphs"
 
 
 class MetaHarnessRuntimeTests(unittest.TestCase):
+    def test_executes_planned_increment_and_returns_automatic_diagnosis(self):
+        class NormalizedHarness:
+            def start(self, request):
+                return "external-1"
+
+            def status(self, harness_session_id):
+                return "failed"
+
+            def cancel(self, harness_session_id):
+                return None
+
+            def result(self, harness_session_id):
+                return ExecutionOutcome(
+                    harness_session_id, "default", ExecutionStatus.FAILED,
+                    "2026-09-16T00:00:00+00:00", "2026-09-16T00:00:01+00:00",
+                    exit_code=1, summary="contract tests failed",
+                )
+
+        sessions = SessionManager({"default": NormalizedHarness()})
+        provider = InMemorySkillProvider({("learning-domain-driven-design", "latest"): "# DDD"})
+        runtime = MetaHarnessRuntime(sessions, SkillResolver({"ligeiro-mindware": provider}))
+        plan = runtime.plan_increment(
+            load_graph(GRAPH_DIR / "delivery-graph.json"),
+            "build", "run-exec", "inc-1", "Build API",
+        )
+        executed = runtime.execute_increment(
+            plan.implementation.session_id, poll_interval_seconds=0.01,
+        )
+        self.assertEqual(executed.outcome.status, ExecutionStatus.FAILED)
+        self.assertEqual(executed.diagnosis.failure_class.value, "validation_failure")
+        self.assertEqual(executed.session.status, SessionStatus.RUNNING)
+
     def test_delivery_build_plans_increment_with_resolved_skill(self):
         provider = InMemorySkillProvider({("learning-domain-driven-design", "latest"): "# DDD"})
         runtime = MetaHarnessRuntime(SessionManager(), SkillResolver({"ligeiro-mindware": provider}))
