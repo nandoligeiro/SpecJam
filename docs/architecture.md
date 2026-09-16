@@ -13,11 +13,21 @@ GraphNode.subagents ──> ReviewRequest[] ──> ReviewResult[]
 
 Trail + accepted artifacts ──> SQLite memory projection
 Objective + structural scope ──> selective recall ──> implementation context
+
+SessionRequest ──> provider adapter ──> ExecutionOutcome ──> DiagnosisReport
+       └──────────────────────────────> Trajectory ──> replay / benchmark
 ```
 
 `route()` validates and evaluates data. It does not read or write files, invoke a model, call a tool, or mutate state. `record_route()` is the explicit persistence boundary.
 
 Vector memory does not alter this pure routing boundary. Recall happens in `MetaHarnessRuntime` while planning an execution session, and the embedding provider remains an injected adapter.
+
+Execution side effects stay behind adapters. Codex and Claude Code run through
+explicit process arguments; Devin runs through an injected HTTP transport. The
+normalized outcome is vendor-neutral and contains references to evidence rather
+than treating provider prose as verified truth. Trajectories snapshot the exact
+neutral request and evaluated metrics, allowing the same case to be replayed
+without weakening graph, session, or memory policy.
 
 ## Graph model
 

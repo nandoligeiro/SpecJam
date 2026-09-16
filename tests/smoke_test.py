@@ -6,13 +6,14 @@ import json
 import os
 import subprocess
 import sys
+from importlib.metadata import version
 from importlib.resources import files
 
 from specjam import __version__
 from specjam.graph_engine import load_graph
 
 
-expected_version = os.environ.get("SPECJAM_EXPECTED_VERSION", "0.0.1").removeprefix("v")
+expected_version = os.environ.get("SPECJAM_EXPECTED_VERSION", version("specjam")).removeprefix("v")
 assert __version__ == expected_version, (__version__, expected_version)
 
 subprocess.run([sys.executable, "-m", "specjam", "--help"], check=True, stdout=subprocess.DEVNULL)

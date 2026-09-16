@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import json
 from pathlib import Path
+import time
 from typing import Any, Mapping, Protocol
 
 
@@ -171,6 +172,16 @@ class SessionManager:
         self._records: dict[str, SessionRecord] = {}
         self._events = events
 
+    def register_harness(self, name: str, harness: ExecutionHarness) -> None:
+        if not name.strip():
+            raise ValueError("execution harness name must not be empty")
+        if name in self._harnesses:
+            raise ValueError(f"execution harness already registered: {name}")
+        self._harnesses[name] = harness
+
+    def harness_names(self) -> tuple[str, ...]:
+        return tuple(sorted(self._harnesses))
+
     def plan(self, request: SessionRequest) -> SessionRecord:
         suffix = sum(1 for record in self._records.values() if record.request.run_id == request.run_id) + 1
         session_id = f"{request.run_id}:{request.increment_id}:{request.role}:{suffix}"
@@ -191,6 +202,40 @@ class SessionManager:
         self._records[session_id] = updated
         self._record_event(updated, record.status, updated.status, {"attempt": updated.attempt})
         return updated
+
+    def external_status(self, session_id: str) -> str:
+        record = self._records[session_id]
+        if not record.harness_session_id:
+            raise ValueError("session has not started in an execution harness")
+        harness = self._harnesses[record.request.policy.harness]
+        return harness.status(record.harness_session_id)
+
+    def execution_result(self, session_id: str) -> object:
+        record = self._records[session_id]
+        if not record.harness_session_id:
+            raise ValueError("session has not started in an execution harness")
+        harness = self._harnesses[record.request.policy.harness]
+        reader = getattr(harness, "result", None)
+        if reader is None:
+            raise TypeError("configured execution harness does not expose normalized results")
+        return reader(record.harness_session_id)
+
+    def wait(self, session_id: str, *, timeout_seconds: float = 3600, poll_interval_seconds: float = 1.0) -> object:
+        if timeout_seconds <= 0 or poll_interval_seconds <= 0:
+            raise ValueError("session timeout and poll interval must be positive")
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            if self.external_status(session_id) in {"succeeded", "failed", "cancelled", "timed_out"}:
+                return self.execution_result(session_id)
+            time.sleep(min(poll_interval_seconds, max(0.0, deadline - time.monotonic())))
+        self.cancel(session_id)
+        return self.execution_result(session_id)
+
+    def cancel(self, session_id: str) -> SessionRecord:
+        record = self._records[session_id]
+        if record.harness_session_id:
+            self._harnesses[record.request.policy.harness].cancel(record.harness_session_id)
+        return self.transition(session_id, SessionStatus.CANCELLED)
 
     def transition(
         self,

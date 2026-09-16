@@ -11,6 +11,8 @@ The first release combines three ideas:
 - **Governed memory**: migratable SQLite records, vector and lexical recall, explainable ranking, lifecycle feedback, bounded context, and mandatory provenance.
 - **Governed learning**: evaluated experience, explicit reflection candidates, and deterministic promotion into episodic or semantic memory.
 - **Adaptive harness composition**: task-aware memory routing, versioned runtime policies, bounded optimization, and regression-gated evolution.
+- **Portable execution**: normalized Codex and Claude Code CLI adapters plus a Devin v3 API adapter, without vendor SDKs in the core.
+- **Diagnosis and replay**: evidenced failure attribution, immutable trajectories, exact-request replay, and comparative harness benchmarks.
 
 ## Quick start
 
@@ -25,7 +27,7 @@ specjam install
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.3.0' specjam --help
+uvx --from 'specjam==0.4.0' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -79,6 +81,12 @@ increment --> session manager --> execution harness
 task + graph + experience --> harness planner --> versioned runtime harness
                                       |
                                       +--> candidate --> evolution gate
+
+session request --> execution adapter --> normalized outcome --> diagnosis
+      |                                      |
+      +---------- immutable trajectory <-----+
+                         |
+                         +--> replay --> comparative benchmark
 ```
 
 The route function never writes files, invokes tools, or calls a model. Persistence belongs to the trail adapter. This split makes the highest-risk policy easy to test.
@@ -112,7 +120,12 @@ Every verifiable increment may create one implementation session, zero or more i
 }
 ```
 
-The core exposes an `ExecutionHarness` protocol rather than depending on Devin, Codex, Claude Code, or a cloud API. Adapters start and monitor external sessions; SpecJam retains routing policy, budgets, evidence, and auditability.
+The core exposes an `ExecutionHarness` protocol rather than depending on a
+vendor SDK. `CommandExecutionHarness` invokes Codex or Claude Code with explicit
+argv and no shell interpolation. `DevinExecutionHarness` uses the Devin v3
+organization-session API with an injected token provider, so credentials are
+never stored in a trajectory. Every adapter returns the same `ExecutionOutcome`
+contract with status, evidence, usage, duration, and summary.
 
 Before creating a session, `HarnessPlanner` classifies the task, routes memory
 proportionally, then composes a content-addressed runtime configuration. The
@@ -122,6 +135,24 @@ harness merely because it produced a plausible reflection. See
 [Harness evolution](docs/harness-evolution.md).
 
 Supported session strategies are `reuse`, `new`, `new_per_increment`, `isolated`, `parallel`, and `exclusive`.
+
+## Execution, diagnosis, and replay
+
+`specjam execution run` accepts a serialized `SessionRequest` and runs it with
+`--provider codex`, `claude`, or `devin`. The generated prompt preserves the
+objective, role, policy, resolved skills, required artifacts, and cited memory
+without copying arbitrary environment variables or credentials into the result.
+
+Failed outcomes pass through `DiagnosisEngine`. Its typed classes distinguish
+context, tool, planning, implementation, validation, constraint, transient, and
+harness failures. A diagnosis is explicitly a confidence-scored hypothesis; it
+can create a reflection candidate but cannot write memory directly.
+
+Evaluated executions can be captured in an append-only `TrajectoryStore` and
+replayed through a different adapter. Candidate trajectories retain `replay_of`
+lineage. `specjam benchmark compare` matches this lineage and reports quality,
+constraint, regression, generalization, cost, latency, and human-intervention
+deltas. See [Execution, diagnosis, and replay](docs/execution-replay.md).
 
 ## Selective SQLite vector memory
 
@@ -206,7 +237,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.3.0
+uv version 0.4.0
 uv build --no-sources
 uv publish
 ```
@@ -215,7 +246,10 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.3.0 adds task-aware harness composition and regression-gated harness evolution on top of governed SQLite vector memory. Organization-specific credentials, embedding models, domain packs, concrete harness clients, and tracker adapters stay outside the core.
+Version 0.4.0 adds normalized Codex, Claude Code, and Devin execution adapters,
+automatic evidence-based diagnosis, immutable trajectory replay, and comparative
+benchmarking on top of the governed v0.3 meta-harness. Organization-specific
+credentials, domain packs, evaluators, and tracker adapters stay outside the core.
 
 ## License
 

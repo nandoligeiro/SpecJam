@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from .diagnosis import DiagnosisEngine, DiagnosisReport
+from .execution import ExecutionOutcome, ExecutionStatus
 from .evolution import (
     EvolutionDecision,
     EvolutionGate,
@@ -51,6 +53,13 @@ class IncrementCompletion:
     learning: LearningResult | None
 
 
+@dataclass(frozen=True)
+class IncrementExecution:
+    session: SessionRecord
+    outcome: ExecutionOutcome
+    diagnosis: DiagnosisReport
+
+
 class MetaHarnessRuntime:
     """Coordinates graph policy; concrete harness adapters remain outside the core."""
 
@@ -64,6 +73,7 @@ class MetaHarnessRuntime:
         learning: LearningLoop | None = None,
         planner: HarnessPlanner | None = None,
         evolution_gate: EvolutionGate | None = None,
+        diagnosis: DiagnosisEngine | None = None,
     ):
         if (memory is None) != (embedder is None):
             raise ValueError("memory and embedder must be configured together")
@@ -75,6 +85,7 @@ class MetaHarnessRuntime:
         self.learning = learning
         self.planner = planner or HarnessPlanner()
         self.evolution_gate = evolution_gate or EvolutionGate()
+        self.diagnosis = diagnosis or DiagnosisEngine()
 
     def plan_increment(
         self,
@@ -219,6 +230,45 @@ class MetaHarnessRuntime:
         )
         session = self.sessions.transition(session_id, SessionStatus.CLOSED)
         return IncrementCompletion(session, result)
+
+    def execute_increment(
+        self,
+        session_id: str,
+        *,
+        timeout_seconds: float = 3600,
+        poll_interval_seconds: float = 1.0,
+    ) -> IncrementExecution:
+        """Run one planned session and return normalized evidence plus diagnosis."""
+
+        session = self.sessions.get(session_id)
+        if session.status is SessionStatus.PLANNED:
+            session = self.sessions.start(session_id)
+        elif session.status is not SessionStatus.RUNNING:
+            raise ValueError(f"session must be planned or running, got {session.status.value}")
+        outcome = self.sessions.wait(
+            session_id,
+            timeout_seconds=timeout_seconds,
+            poll_interval_seconds=poll_interval_seconds,
+        )
+        if not isinstance(outcome, ExecutionOutcome):
+            raise TypeError("execution harness returned a non-normalized result")
+        current = self.sessions.get(session_id)
+        if current.status is SessionStatus.CANCELLED and outcome.status is ExecutionStatus.CANCELLED:
+            outcome = ExecutionOutcome(
+                outcome.execution_id,
+                outcome.harness,
+                ExecutionStatus.TIMED_OUT,
+                outcome.started_at,
+                outcome.completed_at,
+                outcome.exit_code,
+                outcome.summary,
+                outcome.evidence,
+                outcome.usage,
+                outcome.duration_seconds,
+                {**outcome.metadata, "timeout_seconds": timeout_seconds},
+            )
+        report = self.diagnosis.diagnose(outcome)
+        return IncrementExecution(current, outcome, report)
 
     def evaluate_harness_candidate(
         self,

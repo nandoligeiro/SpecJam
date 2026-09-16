@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "specjam_version": "0.2.0",
+  "specjam_version": "0.4.0",
   "default_graph": "delivery",
   "trail_directory": "runs",
   "aggregation": "opt-in",
@@ -9,6 +9,23 @@
     "default_harness": "default",
     "session_strategy": "new_per_increment",
     "max_retries": 2
+  },
+  "execution": {
+    "adapter_registry": "workspace",
+    "providers": ["codex", "claude", "devin"],
+    "normalized_outcomes": true,
+    "credentials": "external"
+  },
+  "diagnosis": {
+    "strategy": "evidence-based",
+    "automatic_recovery": "bounded-only",
+    "memory_promotion": "governed"
+  },
+  "replay": {
+    "trajectory_store": "runs/trajectories.jsonl",
+    "append_only": true,
+    "require_evaluated_metrics": true,
+    "require_complete_regression_suite": true
   },
   "memory": {
     "backend": "auto",
