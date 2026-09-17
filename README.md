@@ -16,18 +16,22 @@ The first release combines three ideas:
 
 ## Quick start
 
-Run SpecJam directly from PyPI with `uvx`, or install it persistently with `uv tool`:
+Install the complete local-first runtime persistently with `uv tool`:
 
 ```bash
-uvx specjam install
-uv tool install specjam
+uv tool install 'specjam[local]'
 specjam install
+specjam memory prepare
+specjam doctor
 ```
+
+The core-only `uvx specjam install` path remains available for graph routing,
+documentation and environments that deliberately do not use semantic memory.
 
 To pin the current release explicitly:
 
 ```bash
-uvx --from 'specjam==0.4.0' specjam --help
+uvx --from 'specjam==0.5.0' specjam --help
 ```
 
 For a source checkout, `uv run` keeps the package isolated and reproducible:
@@ -36,6 +40,7 @@ For a source checkout, `uv run` keeps the package isolated and reproducible:
 uv run specjam install
 uv run specjam verify
 uv run specjam inspect
+uv run specjam doctor
 uv run specjam classify "Add a new payment capability"
 uv run specjam flow scaffold --flow delivery --slug payment-capability
 uv run specjam memory init --db .specjam/memory/specjam.db --dimensions 3
@@ -47,14 +52,19 @@ For automatic, fully local embeddings and `sqlite-vec` acceleration:
 ```bash
 uv tool install 'specjam[local]'
 specjam memory prepare
-specjam memory init
 specjam memory add --kind procedure --content "Validate contracts before migration" \
   --source-ref trail://delivery-42/inc-4
 specjam memory search --text "How should I migrate this API?"
 ```
 
-`memory prepare` is the only step allowed to download the ONNX model. Normal
-indexing and retrieval use cached model files and do not access the network.
+`memory prepare` is the only step allowed to download the ONNX model and now
+initializes the configured SQLite projection. Normal indexing, retrieval and
+execution use cached model files and do not access the network. `execution run`
+automatically opens the configured projection, embeds the objective, retrieves a
+bounded hybrid context pack and injects cited memories into eligible
+implementation sessions. Reviewers remain unprimed, an explicit harness policy
+can disable recall, and a missing optional dependency or model is reported in
+execution metadata without triggering a hidden download.
 
 The installer creates `.specjam/` and a minimal root `AGENTS.md` bridge. Existing bridge files are preserved unless `--force` is supplied. Runtime state is ignored; the lockfile and managed definitions remain inspectable.
 
@@ -158,6 +168,13 @@ deltas. See [Execution, diagnosis, and replay](docs/execution-replay.md).
 
 SpecJam can recall a small number of cited decisions, failures, recoveries, procedures, and outcomes before planning an implementation session. It combines SQLite FTS5, `sqlite-vec` cosine KNN when the local extra is installed, and graph/stage/role filters. A portable exact-cosine backend remains available as fallback. Reviewer sessions remain unprimed by default.
 
+Installed workspaces set `memory.enabled=true` and `memory.auto_wire=true`.
+After the one-time `specjam memory prepare`, semantic recall is automatically
+connected to `specjam execution run`. Use `--disable-semantic` for a single run
+or set `memory.enabled=false` in `.specjam/config.json` for a workspace. Run
+`specjam doctor` to see dependency, model, database, FTS5 and vector-backend
+readiness.
+
 Every recall is traced with its candidates, selected IDs, score signals, latency,
 and context budget. Evaluation may report exactly which memories were consumed;
 repeated success promotes `validated` memory to `trusted`, while repeated failure
@@ -204,7 +221,32 @@ context merely because they were generated.
 
 ## Versioned skill providers
 
-Graph nodes may invoke workspace or external skills through `provider/name@version` references. `SkillResolver` records the resolved version and a SHA-256 content hash, so a run can explain exactly which capability was loaded. The default workspace configuration includes a provider contract for [Ligeiro Mindware](https://github.com/nandoligeiro/ligeiro-mindware); network and Git access remain adapter concerns outside the dependency-free core.
+Graph nodes may invoke workspace or external skills through `provider/name@version`
+references. Filesystem and read-only Git providers expose a common catalog;
+`SkillResolver` records the resolved version, immutable Git revision and SHA-256
+content hash so a run can explain exactly which capability was loaded. Git
+snapshots are cached under `.specjam/cache/skills`, while the reproducible
+resolution is stored in `.specjam/skills.lock.json`.
+
+The Delivery build stage uses a bounded task-aware policy over the configured
+[Ligeiro Mindware](https://github.com/nandoligeiro/ligeiro-mindware) catalog. It
+matches RWSA routing metadata, selects at most three relevant skills and falls
+back to domain-driven design only when no candidate matches. Resolved skill
+content is delivered to execution as cited session context; its provenance is
+also recorded in session metadata for replay.
+
+```bash
+specjam skills list
+specjam skills sync
+specjam skills inspect ligeiro-mindware/observability-engineering@latest
+specjam skills verify --offline
+```
+
+`sync` is the explicit network boundary. Normal execution can use the lockfile
+and immutable cache offline. `--update` deliberately re-resolves moving
+references such as `@latest`; updates never happen silently during replay. Git
+hooks and submodules are not executed, archive paths and links are rejected,
+and per-file and total archive sizes are bounded.
 
 ## Postmortem as a governed loop
 
@@ -237,7 +279,7 @@ uv build --no-sources
 The release workflow builds both wheel and source distribution on a `v*` tag and publishes them through PyPI Trusted Publishing. Configure the `pypi` GitHub environment and the matching PyPI trusted publisher before pushing a release tag.
 
 ```bash
-uv version 0.4.0
+uv version 0.5.0
 uv build --no-sources
 uv publish
 ```
@@ -246,9 +288,9 @@ The project intentionally keeps the engine dependency-free. Packaging helpers ma
 
 ## Status
 
-Version 0.4.0 adds normalized Codex, Claude Code, and Devin execution adapters,
-automatic evidence-based diagnosis, immutable trajectory replay, and comparative
-benchmarking on top of the governed v0.3 meta-harness. Organization-specific
+Version 0.5.0 adds automatic semantic-memory wiring, installation diagnostics,
+and task-aware, reproducible external skill resolution on top of the governed
+execution, diagnosis, replay, and evolution runtime. Organization-specific
 credentials, domain packs, evaluators, and tracker adapters stay outside the core.
 
 ## License

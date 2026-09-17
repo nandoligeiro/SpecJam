@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import json
+from pathlib import Path
 
 from .diagnosis import DiagnosisEngine, DiagnosisReport
 from .execution import ExecutionOutcome, ExecutionStatus
@@ -32,6 +34,7 @@ from .sessions import (
     SessionStatus,
     SessionStrategy,
 )
+from .semantic import SemanticRuntime
 from .skills import ResolvedSkill, SkillReference, SkillResolver
 
 
@@ -87,6 +90,41 @@ class MetaHarnessRuntime:
         self.evolution_gate = evolution_gate or EvolutionGate()
         self.diagnosis = diagnosis or DiagnosisEngine()
 
+    @classmethod
+    def from_workspace(
+        cls,
+        sessions: SessionManager,
+        config_path: str | Path = ".specjam/config.json",
+        *,
+        skills: SkillResolver | None = None,
+        semantic: SemanticRuntime | None = None,
+    ) -> "MetaHarnessRuntime":
+        """Build a local-first runtime from installed workspace configuration."""
+
+        path = Path(config_path)
+        config = json.loads(path.read_text(encoding="utf-8"))
+        memory_config = config.get("memory", {})
+        if not isinstance(memory_config, dict):
+            raise ValueError("memory configuration must be an object")
+        policy = MemoryPolicy(
+            enabled=bool(memory_config.get("enabled", True)),
+            top_k=int(memory_config.get("top_k", 3)),
+            min_score=float(memory_config.get("min_score", 0.55)),
+            max_context_characters=int(memory_config.get("max_context_characters", 12_000)),
+        )
+        semantic_runtime = semantic or SemanticRuntime(path)
+        status = semantic_runtime.status()
+        store = semantic_runtime.connect() if status.operational else None
+        embedder = semantic_runtime.embedder() if status.operational else None
+        resolver = skills or SkillResolver.from_config(path, offline=True)
+        return cls(
+            sessions,
+            resolver,
+            memory=store,
+            embedder=embedder,
+            memory_policy=policy,
+        )
+
     def plan_increment(
         self,
         graph: FlowGraph,
@@ -103,6 +141,23 @@ class MetaHarnessRuntime:
         node = graph.nodes[stage]
         policy = SessionPolicy.from_dict(node.session_policy)
         references = tuple(SkillReference.parse(value) for value in node.skills)
+        skill_policy = node.metadata.get("skill_policy", {})
+        if isinstance(skill_policy, dict) and skill_policy.get("mode") == "task-aware":
+            candidates = tuple(
+                SkillReference.parse(str(value))
+                for value in skill_policy.get("candidates", ())
+            )
+            fallback = tuple(
+                SkillReference.parse(str(value))
+                for value in skill_policy.get("fallback", ())
+            )
+            selected = self.skills.select(
+                objective,
+                candidates,
+                max_skills=int(skill_policy.get("max_skills", 3)),
+                fallback=fallback,
+            )
+            references = tuple(dict.fromkeys((*references, *selected)))
         resolved = self.skills.resolve(references)
         effective_memory_policy = (
             self.memory_policy
@@ -128,7 +183,19 @@ class MetaHarnessRuntime:
                 **({"repository": repository} if repository else {}),
             },
         )
-        context = tuple(SessionContextItem(
+        skill_context = tuple(SessionContextItem(
+            kind="skill",
+            content=skill.content,
+            source_ref=skill.source,
+            score=1.0,
+            metadata={
+                "reference": skill.reference.canonical,
+                "resolved_version": skill.resolved_version,
+                "revision": skill.revision or "",
+                "content_hash": skill.content_hash,
+            },
+        ) for skill in resolved)
+        memory_context = tuple(SessionContextItem(
             kind=match.record.kind.value,
             content=match.record.content,
             source_ref=match.record.source_ref,
@@ -141,6 +208,10 @@ class MetaHarnessRuntime:
                 **match.record.metadata,
             },
         ) for match in memories)
+        # Preserve retrieval ordering for consumers that treat the first items as
+        # the bounded memory pack; resolved skills follow as separately cited context.
+        context = memory_context + skill_context
+        skill_provenance = [skill.to_dict() for skill in resolved]
         implementation = self.sessions.plan(SessionRequest(
             run_id=run_id,
             increment_id=increment_id,
@@ -155,6 +226,7 @@ class MetaHarnessRuntime:
                 "graph": graph.id, "stage": stage,
                 "harness_version": harness.version,
                 "harness_config": harness.to_dict(),
+                "resolved_skills": skill_provenance,
                 **({"project": project} if project else {}),
                 **({"repository": repository} if repository else {}),
             },
@@ -168,11 +240,13 @@ class MetaHarnessRuntime:
             policy=SessionPolicy(strategy=SessionStrategy.ISOLATED, harness=policy.harness, read_only=True),
             skills=tuple(skill.reference.canonical for skill in resolved),
             input_artifacts=node.required_artifacts,
+            context_items=skill_context,
             metadata={
                 "graph": graph.id,
                 "stage": stage,
                 "reviewer": subagent.role,
                 "parent_harness_version": harness.version,
+                "resolved_skills": skill_provenance,
             },
         )) for subagent in node.subagents)
         return IncrementPlan(

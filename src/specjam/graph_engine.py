@@ -57,6 +57,28 @@ def validate_graph(graph: FlowGraph) -> None:
                 SkillReference.parse(skill)
             except ValueError as exc:
                 errors.append(f"node {node.id!r} has an invalid skill reference {skill!r}: {exc}")
+        skill_policy = node.metadata.get("skill_policy", {})
+        if skill_policy:
+            if not isinstance(skill_policy, Mapping):
+                errors.append(f"node {node.id!r} skill_policy must be an object")
+            else:
+                try:
+                    if int(skill_policy.get("max_skills", 3)) < 1:
+                        errors.append(f"node {node.id!r} skill_policy max_skills must be positive")
+                except (TypeError, ValueError):
+                    errors.append(f"node {node.id!r} skill_policy max_skills must be an integer")
+                for field in ("candidates", "fallback"):
+                    values = skill_policy.get(field, ())
+                    if isinstance(values, (str, bytes)):
+                        errors.append(f"node {node.id!r} skill_policy {field} must be an array")
+                        continue
+                    for skill in values:
+                        try:
+                            SkillReference.parse(str(skill))
+                        except ValueError as exc:
+                            errors.append(
+                                f"node {node.id!r} has an invalid {field} skill reference {skill!r}: {exc}"
+                            )
         conditions: set[str | None] = set()
         for edge in node.transitions:
             if edge.to not in graph.nodes:
