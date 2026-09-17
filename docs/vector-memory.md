@@ -98,8 +98,22 @@ specjam memory prepare
 The default model is `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
 through FastEmbed/ONNX. Its 384 dimensions are discovered from the model
 manifest, so normal commands do not require `--dimensions` or a precomputed
-`--embedding`. `memory prepare` may download model assets; every other command
-sets `local_files_only` and fails explicitly if the cache is unavailable.
+`--embedding`. `memory prepare` may download model assets and initializes the
+configured projection; every other command sets `local_files_only` and never
+downloads during execution.
+
+Installed workspaces enable semantic autowiring. Before `execution run` starts
+an eligible implementation session, `SemanticRuntime` opens or initializes the
+projection, embeds the objective, performs bounded hybrid recall, and appends
+cited results to the existing session context. It does not prime read-only
+reviewers, does not re-retrieve when a request already contains memory, and
+honors a disabled harness memory policy. Replay retains its captured request and
+therefore does not perform fresh retrieval.
+
+If FastEmbed or the prepared model is unavailable, execution continues without
+semantic context and records a machine-readable reason under
+`semantic_memory`. Use `specjam doctor` to verify the full path before relying
+on recall in an unattended workflow.
 
 The default vector backend is `auto`: use `sqlite-vec` when installed and fall
 back to exact Python cosine otherwise. `VectorIndex` isolates extension-specific
@@ -132,7 +146,9 @@ store.add(MemoryRecord.create(
 ))
 ```
 
-An embedding adapter is injected into `MetaHarnessRuntime`; SpecJam does not choose a model or send content to a provider.
+An embedding adapter can still be injected into `MetaHarnessRuntime`. The
+installed local profile selects the model declared in `.specjam/config.json`;
+it never sends content to a remote provider.
 
 ## CLI
 

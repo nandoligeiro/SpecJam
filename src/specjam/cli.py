@@ -21,6 +21,7 @@ from .execution import (
     ExecutionOutcome,
     execute_and_wait,
     request_from_dict,
+    request_to_dict,
 )
 from .graph_engine import load_graph, record_route
 from .harness import HarnessConfig, HarnessPlanner
@@ -35,6 +36,8 @@ from .memory import (
 )
 from .model import RouteState
 from .rws import load_rwsa, validate_rwsa
+from .semantic import SemanticRuntime
+from .skills import SkillReference, SkillResolver
 
 
 def _emit(value) -> None:
@@ -75,6 +78,8 @@ def _add_execution_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--poll-interval", type=float, default=1.0)
     parser.add_argument("--devin-organization-id")
     parser.add_argument("--devin-token-env", default="DEVIN_API_KEY")
+    parser.add_argument("--semantic-config")
+    parser.add_argument("--disable-semantic", action="store_true")
 
 
 def _execution_harness(args):
@@ -92,6 +97,11 @@ def _execution_harness(args):
         args.devin_organization_id,
         lambda: os.environ.get(args.devin_token_env, ""),
     )
+
+
+def _semantic_runtime(args) -> SemanticRuntime:
+    config = args.semantic_config or str(Path(args.workdir) / ".specjam" / "config.json")
+    return SemanticRuntime(config)
 
 
 def _add_local_options(parser: argparse.ArgumentParser, *, embedding: bool = False) -> None:
@@ -138,6 +148,22 @@ def _configured_store(args, dimensions: int, provider: FastEmbedProvider | None 
     return store
 
 
+def _skill_resolver(args) -> SkillResolver:
+    return SkillResolver.from_config(
+        args.config,
+        cache_dir=args.cache_dir,
+        lock_path=args.lock,
+        offline=args.offline,
+    )
+
+
+def _add_skill_provider_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", default=".specjam/config.json")
+    parser.add_argument("--cache-dir")
+    parser.add_argument("--lock")
+    parser.add_argument("--offline", action="store_true")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="specjam", description="Deterministic agentic engineering workspace")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -155,6 +181,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect_parser = commands.add_parser("inspect", help="inspect installation metadata")
     inspect_parser.add_argument("--target", default=".")
+
+    doctor = commands.add_parser("doctor", help="inspect installation and semantic readiness")
+    doctor.add_argument("--target", default=".")
+    doctor.add_argument("--config")
+    doctor.add_argument("--skip-model-check", action="store_true")
 
     classify_parser = commands.add_parser("classify", help="classify work into L0-L3")
     classify_parser.add_argument("text", nargs="+")
@@ -186,11 +217,27 @@ def build_parser() -> argparse.ArgumentParser:
     scaffold.add_argument("--flow", required=True, choices=("discovery", "delivery", "postmortem"))
     scaffold.add_argument("--slug", required=True)
 
+    skills = commands.add_parser("skills", help="discover and pin external skill providers")
+    skill_commands = skills.add_subparsers(dest="skills_command", required=True)
+    skills_list = skill_commands.add_parser("list", help="list provider skill metadata")
+    _add_skill_provider_options(skills_list)
+    skills_list.add_argument("--provider")
+    skills_sync = skill_commands.add_parser("sync", help="resolve skills into cache and lockfile")
+    _add_skill_provider_options(skills_sync)
+    skills_sync.add_argument("--skill", action="append", default=[])
+    skills_sync.add_argument("--update", action="store_true")
+    skills_inspect = skill_commands.add_parser("inspect", help="inspect one resolved skill")
+    _add_skill_provider_options(skills_inspect)
+    skills_inspect.add_argument("reference")
+    skills_verify = skill_commands.add_parser("verify", help="verify locked skill hashes")
+    _add_skill_provider_options(skills_verify)
+
     memory = commands.add_parser("memory", help="manage the SQLite retrieval projection")
     memory_commands = memory.add_subparsers(dest="memory_command", required=True)
     memory_prepare = memory_commands.add_parser("prepare", help="download and verify the local embedding model")
     memory_prepare.add_argument("--model", default=DEFAULT_LOCAL_MODEL)
     memory_prepare.add_argument("--cache-dir")
+    memory_prepare.add_argument("--config", default=".specjam/config.json")
     memory_init = memory_commands.add_parser("init", help="initialize a typed vector store")
     memory_init.add_argument("--db", default=".specjam/memory/specjam.db")
     _add_local_options(memory_init)
@@ -318,6 +365,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "inspect":
         _emit(inspect_installation(args.target))
         return 0
+    if args.command == "doctor":
+        root = Path(args.target)
+        config = args.config or str(root / ".specjam" / "config.json")
+        semantic = SemanticRuntime(config).status(check_model=not args.skip_model_check)
+        installation = inspect_installation(root)
+        _emit({"installation": installation, "semantic": semantic.to_dict()})
+        return 0 if semantic.operational else 1
     if args.command == "classify":
         _emit(classify_request(" ".join(args.text), ambiguous=args.ambiguous, critical=args.critical).to_dict())
         return 0
@@ -344,7 +398,33 @@ def main(argv: list[str] | None = None) -> int:
         path = scaffold_flow(args.target, args.flow, args.slug)
         _emit({"flow": args.flow, "path": str(path)})
         return 0
+    if args.command == "skills":
+        resolver = _skill_resolver(args)
+        if args.skills_command == "list":
+            _emit({"skills": [item.to_dict() for item in resolver.catalog(args.provider)]})
+            return 0
+        if args.skills_command == "sync":
+            references = tuple(SkillReference.parse(value) for value in args.skill)
+            if not references:
+                references = tuple(item.reference for item in resolver.catalog())
+            resolved = resolver.resolve(references, update=args.update)
+            _emit({"resolved": [item.to_dict() for item in resolved]})
+            return 0
+        if args.skills_command == "inspect":
+            resolved = resolver.resolve((SkillReference.parse(args.reference),))[0]
+            _emit({**resolved.to_dict(), "content": resolved.content})
+            return 0
+        errors = resolver.verify()
+        _emit({"valid": not errors, "errors": list(errors)})
+        return 0 if not errors else 1
     if args.command == "memory" and args.memory_command == "prepare":
+        if Path(args.config).is_file():
+            status = SemanticRuntime(
+                args.config,
+                embedding_cache_dir=args.cache_dir,
+            ).prepare()
+            _emit(status.to_dict())
+            return 0
         provider = _provider(args, allow_download=True)
         provider.prepare()
         _emit({"provider": "fastembed", "model": provider.model, "dimensions": provider.dimensions, "ready": True})
@@ -485,12 +565,19 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if decision.accepted else 3
     if args.command == "execution" and args.execution_command == "run":
         request = request_from_dict(_json_object(args.request))
+        if not args.disable_semantic:
+            request = _semantic_runtime(args).enrich(request)
         outcome = execute_and_wait(
             _execution_harness(args), request,
             timeout_seconds=args.timeout, poll_interval_seconds=args.poll_interval,
         )
         report = DiagnosisEngine().diagnose(outcome)
-        _emit({"outcome": outcome.to_dict(), "diagnosis": report.to_dict()})
+        _emit({
+            "executed_request": request_to_dict(request),
+            "outcome": outcome.to_dict(),
+            "diagnosis": report.to_dict(),
+            "semantic_memory": request.metadata.get("semantic_memory", {"active": False}),
+        })
         return 0 if outcome.status.value == "succeeded" else 4
     if args.command == "diagnose":
         outcome = ExecutionOutcome.from_dict(_json_object(args.outcome))

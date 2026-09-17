@@ -219,9 +219,9 @@ def render_execution_prompt(value: SessionRequest) -> str:
     if value.input_artifacts:
         lines.append("Required input artifacts: " + ", ".join(value.input_artifacts))
     if value.context_items:
-        lines.append("Retrieved context (cite source refs in the final result):")
+        lines.append("Governed context (cite source refs in the final result):")
         for item in value.context_items:
-            lines.append(f"- [{item.source_ref}] {item.content}")
+            lines.append(f"- [{item.source_ref}] ({item.kind}) {item.content}")
     lines.extend((
         "Preserve failed checks as evidence. Do not claim success without verification.",
         "Return a concise summary, changed artifacts, validation evidence, and blockers.",

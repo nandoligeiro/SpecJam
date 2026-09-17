@@ -29,7 +29,7 @@ evidence + reviewers + synthesis
 
 - **SpecJam** selects the graph node, defines the increment, resolves skills, creates sessions, enforces gates and records decisions.
 - **Execution harness** edits repositories, runs tools and reports evidence. Devin is the first intended adapter; the core does not depend on it.
-- **Skill provider** resolves a portable capability by provider, name and version. Ligeiro Mindware is the first configured external provider.
+- **Skill provider** catalogs and resolves a portable capability by provider, name and version. Filesystem skills are loaded directly; Git skills are materialized into an immutable, size-bounded local cache. Ligeiro Mindware is the first configured external provider.
 - **Memory store** retrieves a bounded set of typed, cited experiences. SQLite is a rebuildable projection; trail and artifacts remain authoritative.
 - **Harness planner** composes a content-addressed task-specific runtime policy and records it in the session.
 - **Evolution gate** compares an evidenced candidate with its baseline and rejects regression, over-budget execution, and overly broad changes.
@@ -68,4 +68,23 @@ class DevinAdapter(ExecutionHarness):
 
 Credentials and vendor SDKs belong to adapter packages or the consuming workspace, never to `specjam` core.
 
+## External skill lifecycle
+
+```text
+Provider config -> catalog -> task-aware selection -> version resolution
+       -> immutable cache -> skills.lock.json -> cited session context
+```
+
+Moving references such as `@latest` are resolved only during explicit sync or
+update. A lock records the resolved tag, commit, source and content hash. Replay
+uses that revision from cache, and fails closed if the content no longer matches.
+The provider repository does not depend on SpecJam; it only needs portable
+`SKILL.md` files and may add an RWSA `rws.json` contract for richer routing.
+
 Embedding implementations follow the same rule. The runtime accepts an `EmbeddingProvider` adapter and delivers recalled context only to the implementation session; reviewers remain independent unless a consuming policy opts in explicitly.
+
+Installed workspaces can use `MetaHarnessRuntime.from_workspace(...)` to wire
+the skill resolver, semantic provider, SQLite projection and memory policy from
+`.specjam/config.json`. It checks the local model offline and degrades to a
+memory-disabled runtime when the local profile has not been prepared; the
+execution CLI exposes the readiness reason in its normalized output.

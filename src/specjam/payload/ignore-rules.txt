@@ -3,6 +3,7 @@
 .specjam/runs/
 .specjam/daily/
 .specjam/memory/
+.specjam/cache/
 .discovery/
 projects/
 daily/

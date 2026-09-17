@@ -16,6 +16,9 @@ SpecJam is a harness-neutral engineering method. Use natural language at the ent
 - Treat automatic diagnosis as a confidence-scored hypothesis, never as root cause without evidence.
 - Capture only evaluated executions as immutable trajectories; replays point to their baseline.
 - Reject incomplete comparative benchmark suites before harness promotion.
+- Synchronize external skills explicitly, pin their commit and content hash in `skills.lock.json`, and use the immutable cache during execution and replay.
+- Select task-aware skills from routing metadata with a bounded context; do not load an entire provider pack into every session.
+- Keep semantic memory autowiring enabled for implementation sessions after local model preparation; reviewers and exact-request replays remain unprimed.
 
 ## Flow vocabulary
 

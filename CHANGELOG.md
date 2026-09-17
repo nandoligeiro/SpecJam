@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+## 0.5.0 — 2026-09-17
+
+- Enabled semantic-memory autowiring by default in installed workspace configuration.
+- Added automatic bounded hybrid recall and cited context injection to `execution run` while keeping reviewers unprimed.
+- Made `memory prepare` initialize and bind the configured SQLite projection after the explicit model download.
+- Added `specjam doctor` for installation, model, database, FTS5 and vector-backend readiness.
+- Added graceful offline degradation with an auditable reason when the local embedding extra or model is unavailable.
+- Added discoverable filesystem and read-only Git skill providers with bounded immutable caches.
+- Added reproducible `skills.lock.json` resolution with tag, commit, source and SHA-256 provenance.
+- Added task-aware Delivery skill selection over the Ligeiro Mindware catalog with a three-skill context limit.
+- Added cited resolved-skill content and provenance to implementation and reviewer session requests.
+- Added `skills list`, `sync`, `inspect`, and `verify`, including explicit updates and offline verification.
+- Added protections against path traversal, archive links, oversized skill content, Git prompts, hooks, and submodules.
+
 ## 0.4.0 — 2026-09-16
 
 - Added normalized execution outcomes and adapters for Codex CLI, Claude Code, and Devin v3 organization sessions.

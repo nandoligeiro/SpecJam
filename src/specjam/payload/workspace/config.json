@@ -1,6 +1,6 @@
 {
-  "schema": 2,
-  "specjam_version": "0.4.0",
+  "schema": 3,
+  "specjam_version": "0.5.0",
   "default_graph": "delivery",
   "trail_directory": "runs",
   "aggregation": "opt-in",
@@ -28,6 +28,9 @@
     "require_complete_regression_suite": true
   },
   "memory": {
+    "enabled": true,
+    "auto_wire": true,
+    "required": false,
     "backend": "auto",
     "vector_backends": ["sqlite-vec", "exact"],
     "path": "memory/specjam.db",
@@ -41,6 +44,7 @@
     "intervention": "selective",
     "top_k": 3,
     "min_score": 0.55,
+    "max_context_characters": 12000,
     "write_policy": "accepted_evidence_only",
     "calibration": {
       "top_k_candidates": [1, 2, 3, 5],
